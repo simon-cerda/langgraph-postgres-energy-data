@@ -81,7 +81,12 @@ def prune_columns(state: State) -> State:
     state.relevant_columns = response.strip().split(", ")
     return state
 
-def generate_sql(state: State) -> State:
+def generate_sql(state: State, *, config: RunnableConfig) -> State:
+
+    configuration = Configuration.from_runnable_config(config)
+    system_prompt = configuration.general_system_prompt.format(
+        logic=state.router["logic"]
+    )
     prompt = f"Generate an SQL query for the `{state.relevant_table}` table using only these columns: {', '.join(state.relevant_columns)}.\nUser query: {state.user_query}"
     response = llm([HumanMessage(content=prompt)]).content
     state.sql_query = response.strip()
