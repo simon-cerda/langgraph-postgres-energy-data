@@ -71,12 +71,12 @@ def route_query(state: State) -> Literal["table_validation", "ask_for_more_info"
         raise ValueError(f"Unknown router type {_type}")
 
 def validate_table(state: State) -> State:
-    # If future expansion includes multiple tables, this logic will be extended
-    state.relevant_table = "building_energy_consumption"
+    # If future expansion includes multiple tables, this logic will be extended, AI should decide which table to use.
+    state.relevant_tables = ["building_energy_consumption_insights"]
     return state
 
 def prune_columns(state: State) -> State:
-    prompt = f"Given the table `{state.relevant_table}`, filter out unnecessary columns for the query:\n{state.user_query}"
+    prompt = f"Given the table `{state.relevant_table}`, filter out unnecessary columns for the query:\n{state.messages[-1].content}"
     response = llm([HumanMessage(content=prompt)]).content
     state.relevant_columns = response.strip().split(", ")
     return state
@@ -84,10 +84,11 @@ def prune_columns(state: State) -> State:
 def generate_sql(state: State, *, config: RunnableConfig) -> State:
 
     configuration = Configuration.from_runnable_config(config)
+
     system_prompt = configuration.general_system_prompt.format(
-        logic=state.router["logic"]
+        relevant_tables=state.router["logic"]
     )
-    prompt = f"Generate an SQL query for the `{state.relevant_table}` table using only these columns: {', '.join(state.relevant_columns)}.\nUser query: {state.user_query}"
+    prompt = f"Generate an SQL query for the `{state.relevant_table}` table using only these columns: {', '.join(state.relevant_columns)}.\nUser query: {state.messages[-1].content}"
     response = llm([HumanMessage(content=prompt)]).content
     state.sql_query = response.strip()
     return state

@@ -63,7 +63,7 @@ class State(InputState):
 
 
     router: Router = field(default_factory=lambda: Router(type="general", logic=""))  # ✅ FIXED
-    relevant_table: Optional[str] = None
+    relevant_tables: Optional[str] = None
     relevant_columns: Optional[List[str]] = None
     sql_query: Optional[str] = None
     query_result: Optional[str] = None
