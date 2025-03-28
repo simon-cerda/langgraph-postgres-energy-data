@@ -4,12 +4,12 @@ from __future__ import annotations
 
 
 from dataclasses import dataclass, field
-from typing import Annotated, Literal, Optional, List
+from typing import Annotated, Literal, Optional, List, Dict, Any
 from typing_extensions import TypedDict
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph import add_messages
-
+from pydantic import Field, BaseModel
 
 @dataclass(kw_only=True)
 class InputState:
@@ -57,15 +57,38 @@ class Router(TypedDict):
     logic: str
     type: Literal["more-info", "langchain", "general"]
 
+## 1. Data Models for Table and Column Metadata
+class ColumnMetadata(BaseModel):
+    name: str
+    data_type: str
+    description: str
+    is_sensitive: bool = False
+    example_values: Optional[List[Any]] = None
+    allowed_operations: List[str] = Field(default_factory=lambda: ["select", "filter", "group_by"])
+
+class TableMetadata(BaseModel):
+    name: str
+    description: str
+    columns: Dict[str, ColumnMetadata]
+    primary_keys: List[str]
+    relationships: Dict[str, str] = Field(default_factory=dict)
+    update_frequency: str = "daily"
+    data_owner: str = "unknown"
+
+class DatabaseSchema(BaseModel):
+    tables: Dict[str, TableMetadata]
+    version: str = "1.0"
+
 @dataclass(kw_only=True)
 class State(InputState):
     """Defines the input state for the agent."""
 
-
-    router: Router = field(default_factory=lambda: Router(type="general", logic=""))  # ✅ FIXED
-    relevant_tables: Optional[str] = None
-    relevant_columns: Optional[List[str]] = None
+    router: Router = field(default_factory=lambda: Router(type="general", logic=""))
+    relevant_tables: List[TableMetadata] = Field(default_factory=list)
+    relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
+    column_descriptions: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     sql_query: Optional[str] = None
     query_result: Optional[str] = None
     explanation: Optional[str] = None
+    validation_notes: List[str] = Field(default_factory=list)
 

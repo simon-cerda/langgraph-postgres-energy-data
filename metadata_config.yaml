@@ -1,0 +1,19 @@
+"""
+tables:
+  building_energy_consumption_insights:
+    name: building_energy_consumption_insights
+    description: "Contains energy consumption metrics for buildings with building characteristics"
+    primary_keys: ["building_id", "date"]
+    columns:
+      building_id:
+        name: building_id
+        data_type: "integer"
+        description: "Unique identifier for the building"
+      consumption_kwh:
+        name: consumption_kwh
+        data_type: "float"
+        description: "Energy consumption in kilowatt-hours"
+      # ... other columns
+    relationships:
+      building_id: "buildings.building_id"
+"""

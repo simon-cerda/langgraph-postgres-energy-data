@@ -9,9 +9,11 @@ from langchain_core.runnables import RunnableConfig
 
 
 from agent.configuration import Configuration
-from agent.state import State, InputState, Router
+from agent.state import State, InputState, Router, DatabaseSchema, TableMetadata
 
-from typing import Optional, Dict, cast, Union, Literal
+from typing import Optional, Dict, cast, Union, Literal, List
+import yaml
+
 
 from langchain_openai import ChatOpenAI 
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
@@ -19,9 +21,50 @@ import psycopg2
 from langgraph.graph import END, START, StateGraph
 from agent.configuration import Configuration
 from agent.utils import load_chat_model
+import json
+from pathlib import Path
+
 llm = ChatOpenAI(model="gpt-4", temperature=0)
 
 
+class MetadataManager:
+    def __init__(self, config_path: str = "metadata_config.yaml"):
+        self.config_path = Path(config_path)
+        self.schema = self._load_schema()
+    
+    def _load_schema(self) -> DatabaseSchema:
+        """Load schema from YAML configuration"""
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Metadata config not found at {self.config_path}")
+        
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        return DatabaseSchema(**config)
+    
+    def get_table(self, table_name: str) -> TableMetadata:
+        """Get metadata for a specific table"""
+        if table_name not in self.schema.tables:
+            raise ValueError(f"Table {table_name} not found in schema")
+        return self.schema.tables[table_name]
+    
+    def get_relevant_tables(self, query: str) -> List[TableMetadata]:
+        """Use LLM to determine relevant tables for a query"""
+        prompt = f"""
+        Database Schema:
+        {json.dumps({name: table.description for name, table in self.schema.tables.items()}, indent=2)}
+        
+        User Query: {query}
+        
+        Identify which tables are relevant to answer this query. Return only a JSON list of table names.
+        """
+        
+        response = llm.invoke(prompt).content
+        try:
+            table_names = json.loads(response)
+            return [self.get_table(name) for name in table_names]
+        except json.JSONDecodeError:
+            raise ValueError(f"LLM returned invalid table list: {response}")
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
@@ -70,27 +113,83 @@ def route_query(state: State) -> Literal["table_validation", "ask_for_more_info"
     else:
         raise ValueError(f"Unknown router type {_type}")
 
-def validate_table(state: State) -> State:
-    # If future expansion includes multiple tables, this logic will be extended, AI should decide which table to use.
-    state.relevant_tables = ["building_energy_consumption_insights"]
-    return state
-
-def prune_columns(state: State) -> State:
-    prompt = f"Given the table `{state.relevant_table}`, filter out unnecessary columns for the query:\n{state.messages[-1].content}"
-    response = llm([HumanMessage(content=prompt)]).content
-    state.relevant_columns = response.strip().split(", ")
-    return state
-
-def generate_sql(state: State, *, config: RunnableConfig) -> State:
-
+async def validate_tables(state: State, *, config: RunnableConfig) -> State:
+    """Robust table validation with metadata support"""
     configuration = Configuration.from_runnable_config(config)
+    metadata = MetadataManager(configuration.metadata_config_path)
+    
+    try:
+        state.relevant_tables = metadata.get_relevant_tables(state.messages[-1].content)
+        state.validation_notes.append("Table validation completed successfully")
+    except Exception as e:
+        state.validation_notes.append(f"Table validation error: {str(e)}")
+        raise
+    
+    return state
 
-    system_prompt = configuration.general_system_prompt.format(
-        relevant_tables=state.router["logic"]
+async def prune_columns(state: State, *, config: RunnableConfig) -> State:
+    """Intelligent column pruning with metadata context"""
+    
+    configuration = Configuration.from_runnable_config(config)
+    
+    for table in state.relevant_tables:
+        prompt = f"""
+        Table: {table.name}
+        Columns:
+        {json.dumps({col: desc.description for col, desc in table.columns.items()}, indent=2)}
+        
+        User Query: {state.messages[-1].content}
+        
+        Identify which columns are relevant to answer this query. 
+        Return a JSON object with table name as key and list of column names as value.
+        """
+        
+        try:
+            response = llm.invoke(prompt).content
+            relevant_cols = json.loads(response)
+            state.relevant_columns.update(relevant_cols)
+            
+            # Store column descriptions for explanation generation
+            state.column_descriptions[table.name] = {
+                col: table.columns[col].description 
+                for col in relevant_cols.get(table.name, [])
+                if col in table.columns
+            }
+            
+        except Exception as e:
+            state.validation_notes.append(f"Column pruning error for {table.name}: {str(e)}")
+            raise
+    
+    return state
+
+async def generate_sql(state: State, *, config: RunnableConfig) -> State:
+    """SQL generation with schema validation"""
+    configuration = Configuration.from_runnable_config(config)
+    
+    # Prepare schema context for LLM
+    schema_context = []
+    for table in state.relevant_tables:
+        table_cols = state.relevant_columns.get(table.name, [])
+        schema_context.append(
+            f"Table: {table.name}\n"
+            f"Description: {table.description}\n"
+            f"Relevant Columns: {', '.join(table_cols)}\n"
+            f"Primary Keys: {', '.join(table.primary_keys)}"
+        )
+    
+    prompt = configuration.general_system_prompt.format(
+        schema_context="\n\n".join(schema_context),
+        user_query=state.messages[-1].content
     )
-    prompt = f"Generate an SQL query for the `{state.relevant_table}` table using only these columns: {', '.join(state.relevant_columns)}.\nUser query: {state.messages[-1].content}"
-    response = llm([HumanMessage(content=prompt)]).content
-    state.sql_query = response.strip()
+    
+    try:
+        response = llm([HumanMessage(content=prompt)]).content
+        state.sql_query = response.strip()
+        state.validation_notes.append("SQL generated successfully")
+    except Exception as e:
+        state.validation_notes.append(f"SQL generation error: {str(e)}")
+        raise
+    
     return state
 
 

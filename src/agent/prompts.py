@@ -55,3 +55,20 @@ Only use the following tables:
 
 Question: {input}
 """
+
+GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialect} database. Follow these rules:
+
+1. Create syntactically correct SQL for {dialect}
+2. Only use tables and columns mentioned below
+3. Never use `SELECT *` - only include relevant columns
+4. Limit results to {top_k} unless explicitly asked for more
+5. Order results meaningfully when appropriate
+6. Include JOINs when needed using primary keys
+7. Use proper quoting for identifiers if needed
+
+Available tables:
+{table_info}
+
+Question: {input}
+
+Return ONLY the SQL query with no additional explanation or formatting."""
