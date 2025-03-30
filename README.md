@@ -17,8 +17,9 @@ langgraph-postgres-energy-data/
 │── agent/
 │   ├── configuration.py   # Configuración del agente
 │   ├── state.py           # Definición de estados y router
+│   ├── prompts.py         # Definición de model prompts
 │   ├── utils.py           # Funciones auxiliares
-│── main.py                # Definición del grafo de ejecución
+│   ├── graph.py           # Definición del grafo de ejecución
 │── requirements.txt       # Dependencias del proyecto
 │── README.md              # Documentación del proyecto
 ```
