@@ -1,6 +1,4 @@
-"""Define a simple chatbot agent.
-
-This agent returns a predefined response without using an actual LLM.
+"""Define a custom agentic worfklow to interact with a database.
 """
 
 from typing import Any, Dict
@@ -24,47 +22,6 @@ from agent.utils import load_chat_model
 import json
 from pathlib import Path
 
-llm = ChatOpenAI(model="gpt-4", temperature=0)
-
-
-class MetadataManager:
-    def __init__(self, config_path: str = "metadata_config.yaml"):
-        self.config_path = Path(config_path)
-        self.schema = self._load_schema()
-    
-    def _load_schema(self) -> DatabaseSchema:
-        """Load schema from YAML configuration"""
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"Metadata config not found at {self.config_path}")
-        
-        with open(self.config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        
-        return DatabaseSchema(**config)
-    
-    def get_table(self, table_name: str) -> TableMetadata:
-        """Get metadata for a specific table"""
-        if table_name not in self.schema.tables:
-            raise ValueError(f"Table {table_name} not found in schema")
-        return self.schema.tables[table_name]
-    
-    def get_relevant_tables(self, query: str) -> List[TableMetadata]:
-        """Use LLM to determine relevant tables for a query"""
-        prompt = f"""
-        Database Schema:
-        {json.dumps({name: table.description for name, table in self.schema.tables.items()}, indent=2)}
-        
-        User Query: {query}
-        
-        Identify which tables are relevant to answer this query. Return only a JSON list of table names.
-        """
-        
-        response = llm.invoke(prompt).content
-        try:
-            table_names = json.loads(response)
-            return [self.get_table(name) for name in table_names]
-        except json.JSONDecodeError:
-            raise ValueError(f"LLM returned invalid table list: {response}")
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
@@ -88,7 +45,6 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
         Router, await model.with_structured_output(Router).ainvoke(messages)
     )
     return {"router": response}
-
 
 
 def route_query(state: State) -> Literal["table_validation", "ask_for_more_info", "respond_to_general_query"]:
@@ -115,57 +71,19 @@ def route_query(state: State) -> Literal["table_validation", "ask_for_more_info"
 
 async def validate_tables(state: State, *, config: RunnableConfig) -> State:
     """Robust table validation with metadata support"""
-    configuration = Configuration.from_runnable_config(config)
-    metadata = MetadataManager(configuration.metadata_config_path)
-    
-    try:
-        state.relevant_tables = metadata.get_relevant_tables(state.messages[-1].content)
-        state.validation_notes.append("Table validation completed successfully")
-    except Exception as e:
-        state.validation_notes.append(f"Table validation error: {str(e)}")
-        raise
+
     
     return state
 
 async def prune_columns(state: State, *, config: RunnableConfig) -> State:
     """Intelligent column pruning with metadata context"""
-    
-    configuration = Configuration.from_runnable_config(config)
-    
-    for table in state.relevant_tables:
-        prompt = f"""
-        Table: {table.name}
-        Columns:
-        {json.dumps({col: desc.description for col, desc in table.columns.items()}, indent=2)}
         
-        User Query: {state.messages[-1].content}
-        
-        Identify which columns are relevant to answer this query. 
-        Return a JSON object with table name as key and list of column names as value.
-        """
-        
-        try:
-            response = llm.invoke(prompt).content
-            relevant_cols = json.loads(response)
-            state.relevant_columns.update(relevant_cols)
-            
-            # Store column descriptions for explanation generation
-            state.column_descriptions[table.name] = {
-                col: table.columns[col].description 
-                for col in relevant_cols.get(table.name, [])
-                if col in table.columns
-            }
-            
-        except Exception as e:
-            state.validation_notes.append(f"Column pruning error for {table.name}: {str(e)}")
-            raise
-    
     return state
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
-    
+    model = load_chat_model(configuration.query_model)
     # Prepare schema context for LLM
     schema_context = []
     for table in state.relevant_tables:
@@ -183,7 +101,7 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     )
     
     try:
-        response = llm([HumanMessage(content=prompt)]).content
+        response = model.ainvoke([HumanMessage(content=prompt)]).content
         state.sql_query = response.strip()
         state.validation_notes.append("SQL generated successfully")
     except Exception as e:
@@ -192,26 +110,20 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     
     return state
 
+#TODO - Add validation for SQL query
+async def execute_query(state: State,db) -> State:
 
-def execute_query(state: State) -> State:
-    connection = psycopg2.connect(
-        dbname="smart_city_db",
-        user="your_user",
-        password="your_password",
-        host="your_host",
-        port="5432"
-    )
-    cursor = connection.cursor()
-    cursor.execute(state.sql_query)
-    state.query_result = cursor.fetchall()
-    cursor.close()
-    connection.close()
+    state.query_result = db.run_no_throw(state.sql_query)
+
     return state
 
-def generate_explanation(state: State) -> State:
+async def generate_explanation(state: State,config:RunnableConfig) -> State:
     prompt = f"Explain the following SQL query and its results in simple terms:\nQuery: {state.sql_query}\nResults: {state.query_result}"
-    response = llm([HumanMessage(content=prompt)]).content
+    configuration = Configuration.from_runnable_config(config)
+    model = load_chat_model(configuration.query_model)
+    response = model([HumanMessage(content=prompt)]).content
     state.explanation = response.strip()
+    
     return state
 
 
@@ -265,7 +177,7 @@ workflow = StateGraph(State,input=InputState, config_schema=Configuration)
 workflow.add_node("intent_detection", detect_intent)
 workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
-workflow.add_node("table_validation", validate_table)
+workflow.add_node("table_validation", validate_tables)
 workflow.add_node("column_pruning", prune_columns)
 workflow.add_node("sql_generation", generate_sql)
 workflow.add_node("query_execution", execute_query)

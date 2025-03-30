@@ -1,19 +1,179 @@
 """
 tables:
-  building_energy_consumption_insights:
-    name: building_energy_consumption_insights
-    description: "Contains energy consumption metrics for buildings with building characteristics"
-    primary_keys: ["building_id", "date"]
+  buildings:
+    name: buildings
+    description: "Contains information about building characteristics"
+    primary_keys: ["building_id"]
     columns:
       building_id:
         name: building_id
         data_type: "integer"
         description: "Unique identifier for the building"
-      consumption_kwh:
-        name: consumption_kwh
-        data_type: "float"
-        description: "Energy consumption in kilowatt-hours"
-      # ... other columns
+      name:
+        name: name
+        data_type: "text"
+        description: "Name of the building"
+      building_type:
+        name: building_type
+        data_type: "text"
+        description: "Type of the building (e.g., residential, commercial)"
+      construction_year:
+        name: construction_year
+        data_type: "integer"
+        description: "Year the building was constructed"
+      total_area:
+        name: total_area
+        data_type: "real"
+        description: "Total floor area of the building in square meters"
+      cluster_id:
+        name: cluster_id
+        data_type: "integer"
+        description: "Cluster ID representing groups of similar buildings"
+      location:
+        name: location
+        data_type: "text"
+        description: "Geographical location of the building"
+      address:
+        name: address
+        data_type: "text"
+        description: "Building's physical address"
+      floors:
+        name: floors
+        data_type: "integer"
+        description: "Number of floors in the building"
+      occupancy_rate:
+        name: occupancy_rate
+        data_type: "real"
+        description: "Percentage of the building's space currently occupied"
+      heating_type:
+        name: heating_type
+        data_type: "text"
+        description: "Type of heating system used in the building"
+      cooling_type:
+        name: cooling_type
+        data_type: "text"
+        description: "Type of cooling system used in the building"
+      last_renovation_year:
+        name: last_renovation_year
+        data_type: "integer"
+        description: "Year the building was last renovated"
+      energy_certificate:
+        name: energy_certificate
+        data_type: "text"
+        description: "Energy efficiency certificate of the building"
+    relationships:
+      building_id: "energy_metrics.building_id"
+
+  energy_metrics:
+    name: energy_metrics
+    description: "Contains energy consumption metrics for buildings"
+    primary_keys: ["metric_id"]
+    columns:
+      metric_id:
+        name: metric_id
+        data_type: "integer"
+        description: "Unique identifier for each energy metric entry"
+      building_id:
+        name: building_id
+        data_type: "integer"
+        description: "Identifier for the building (foreign key)"
+      date:
+        name: date
+        data_type: "date"
+        description: "Date of the recorded energy consumption"
+      weekly_consumption_kwh:
+        name: weekly_consumption_kwh
+        data_type: "real"
+        description: "Weekly energy consumption in kilowatt-hours"
+      monthly_consumption_kwh:
+        name: monthly_consumption_kwh
+        data_type: "real"
+        description: "Monthly energy consumption in kilowatt-hours"
+      last_week_consumption_kwh:
+        name: last_week_consumption_kwh
+        data_type: "real"
+        description: "Energy consumption in kilowatt-hours for the previous week"
+      last_month_consumption_kwh:
+        name: last_month_consumption_kwh
+        data_type: "real"
+        description: "Energy consumption in kilowatt-hours for the previous month"
+      consumption_vs_cluster_pct:
+        name: consumption_vs_cluster_pct
+        data_type: "real"
+        description: "Percentage of consumption compared to similar cluster of buildings"
+      consumption_vs_type_pct:
+        name: consumption_vs_type_pct
+        data_type: "real"
+        description: "Percentage of consumption compared to buildings of the same type"
+      temperature_avg:
+        name: temperature_avg
+        data_type: "real"
+        description: "Average temperature during the period"
+      humidity_avg:
+        name: humidity_avg
+        data_type: "real"
+        description: "Average humidity during the period"
+      peak_hourly_consumption_kwh:
+        name: peak_hourly_consumption_kwh
+        data_type: "real"
+        description: "Peak hourly consumption in kilowatt-hours"
+      offpeak_consumption_kwh:
+        name: offpeak_consumption_kwh
+        data_type: "real"
+        description: "Off-peak consumption in kilowatt-hours"
+      weekend_consumption_kwh:
+        name: weekend_consumption_kwh
+        data_type: "real"
+        description: "Energy consumption during weekends in kilowatt-hours"
+      weekday_consumption_kwh:
+        name: weekday_consumption_kwh
+        data_type: "real"
+        description: "Energy consumption during weekdays in kilowatt-hours"
     relationships:
       building_id: "buildings.building_id"
+
+  weather_data:
+    name: weather_data
+    description: "Contains weather-related data for buildings' locations"
+    primary_keys: ["weather_id"]
+    columns:
+      weather_id:
+        name: weather_id
+        data_type: "integer"
+        description: "Unique identifier for the weather data entry"
+      location:
+        name: location
+        data_type: "text"
+        description: "Location for which the weather data was recorded"
+      date:
+        name: date
+        data_type: "date"
+        description: "Date of the weather data entry"
+      avg_temperature:
+        name: avg_temperature
+        data_type: "real"
+        description: "Average temperature for the day"
+      min_temperature:
+        name: min_temperature
+        data_type: "real"
+        description: "Minimum temperature for the day"
+      max_temperature:
+        name: max_temperature
+        data_type: "real"
+        description: "Maximum temperature for the day"
+      precipitation:
+        name: precipitation
+        data_type: "real"
+        description: "Amount of precipitation (in mm) for the day"
+      humidity:
+        name: humidity
+        data_type: "real"
+        description: "Humidity level for the day"
+      wind_speed:
+        name: wind_speed
+        data_type: "real"
+        description: "Wind speed for the day"
+    relationships:
+      location: "buildings.location"
+
 """

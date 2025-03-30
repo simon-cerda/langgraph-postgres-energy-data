@@ -72,3 +72,13 @@ Available tables:
 Question: {input}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
+
+RELEVANT_TABLES_PROMPT = """
+    Database Schema:
+    {table_schema}
+    
+    User Query: {user_query}
+    
+    Identify which tables are relevant to answer this query. Return only a JSON list of table names.
+    """
+    
