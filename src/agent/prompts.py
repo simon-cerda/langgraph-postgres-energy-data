@@ -73,12 +73,21 @@ Question: {input}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
 
-RELEVANT_TABLES_PROMPT = """
-    Database Schema:
-    {table_schema}
-    
-    User Query: {user_query}
-    
-    Identify which tables are relevant to answer this query. Return only a JSON list of table names.
-    """
+RELEVANT_INFO_PROMPT = """Given the following user query: "{user_query}" and the following database schema:
+
+{schema_description}
+
+Identify the relevant tables and the specific columns within those tables that are likely needed to answer the query.
+
+Respond with a JSON object in the following format:
+{{
+  "relevant_tables": ["table_name_1", "table_name_2"],
+  "relevant_columns": {{
+    "table_name_1": ["column_name_a", "column_name_b"],
+    "table_name_2": ["column_name_c"]
+  }}
+}}
+
+If no tables are relevant, return an empty list for "relevant_tables" and an empty dictionary for "relevant_columns".
+"""
     

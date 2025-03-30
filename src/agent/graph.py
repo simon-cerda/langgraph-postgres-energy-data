@@ -7,7 +7,7 @@ from langchain_core.runnables import RunnableConfig
 
 
 from agent.configuration import Configuration
-from agent.state import State, InputState, Router, DatabaseSchema, TableMetadata
+from agent.state import State, InputState, Router
 
 from typing import Optional, Dict, cast, Union, Literal, List
 import yaml
@@ -69,15 +69,42 @@ def route_query(state: State) -> Literal["table_validation", "ask_for_more_info"
     else:
         raise ValueError(f"Unknown router type {_type}")
 
-async def validate_tables(state: State, *, config: RunnableConfig) -> State:
-    """Robust table validation with metadata support"""
+async def extract_relevant_info(state: State, *, config: RunnableConfig) -> State:
+    """Extract relevant tables and columns from the database schema based on the user query."""
+    configuration = Configuration.from_runnable_config(config)
+    model = load_chat_model(configuration.query_model)
+    database_schema: configuration.database_schema
 
-    
-    return state
+    user_query = state.messages[-1].content
 
-async def prune_columns(state: State, *, config: RunnableConfig) -> State:
-    """Intelligent column pruning with metadata context"""
-        
+    # Prepare the prompt for the LLM to identify relevant tables and columns
+
+    prompt = configuration.extract_relevant_info_prompt.format(
+        user_query=user_query, schema_description=database_schema
+    )
+
+    try:
+        response = await model.ainvoke([HumanMessage(content=prompt)])
+        response_json = json.loads(response.content)
+
+        relevant_table_names = response_json.get("relevant_tables", [])
+        relevant_column_names = response_json.get("relevant_columns", {})
+
+        state.relevant_tables = [
+            table for table in database_schema.tables if table.name in relevant_table_names
+        ]
+        state.relevant_columns = relevant_column_names
+        state.validation_notes.append(f"Identified relevant tables: {[t.name for t in state.relevant_tables]}")
+        state.validation_notes.append(f"Identified relevant columns: {state.relevant_columns}")
+
+    except json.JSONDecodeError as e:
+        state.validation_notes.append(f"Error decoding JSON response: {e}")
+        state.validation_notes.append(f"Raw response: {response.content}")
+        raise
+    except Exception as e:
+        state.validation_notes.append(f"Error identifying relevant tables and columns: {e}")
+        raise
+
     return state
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
