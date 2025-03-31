@@ -63,9 +63,9 @@ class Router(TypedDict):
 class State(InputState):
     """Defines the input state for the agent."""
 
-    router: Router = field(default_factory=lambda: Router(type="general", logic=""))
-    relevant_tables: List[str]
-    relevant_columns: Dict[str, List[str]]
+    router: Router = Field(default_factory=lambda: Router(type="general", logic=""))
+    relevant_tables: List[str] = Field(default_factory=list)
+    relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
     sql_query: Optional[str] = None
     query_result: Optional[str] = None
     explanation: Optional[str] = None

@@ -9,7 +9,7 @@ from agent import prompts
 from typing import Annotated
 from sqlalchemy import create_engine, text, inspect
 from pydantic import BaseModel
-from sqlalchemy.inspection import ColumnInfo
+
 DATABASE_URL = "sqlite:///energy_consumption.db"
 
 
@@ -58,6 +58,7 @@ class Configuration:
     def __post_init__(self):
         """Load the database schema after initialization."""
         self.engine = create_engine(self.database_url)
+        self.dialect = self.engine.dialect
         self.database_schema = self._load_database_schema()
         
 
@@ -66,13 +67,13 @@ class Configuration:
         inspector = inspect(self.engine)
         return inspector.get_table_names()
 
-    def _get_table_schema(self, table_name: str)-> List[ColumnInfo]:
+    def _get_table_schema(self, table_name: str):
         """Returns schema details for a given table name."""
         inspector = inspect(self.engine)
         columns = inspector.get_columns(table_name)
         return columns
 
-    def _load_database_schema(self)-> List[List[ColumnInfo]]:
+    def _load_database_schema(self):
         """Loads the entire database schema."""
         table_names = self._get_table_names()
         tables = [self._get_table_schema(table) for table in table_names]

@@ -6,17 +6,14 @@ Un usuario te hará una consulta. Tu primera tarea es clasificar el tipo de cons
 
 ## `more-info`
 Clasifica una consulta como esta si necesitas más información antes de poder ayudar al usuario. Ejemplos incluyen:
-- El usuario hace preguntas ambiguas.
-- El usuario plantea una pregunta que requiere más contexto.
-- El usuario hace una pregunta que necesita información adicional.
+- "¿Cuál es el consumo del edificio?" (sin especificar qué edificio o período).
+- "Dame información sobre eficiencia energética." (pregunta muy general).
+- "Quiero datos de consumo." (no está claro qué tipo de datos o rango de fechas).
+
 
 ## `database`
-Clasifica una consulta como esta si la respuesta se puede responder con los datos la base de datos de Consumo de Energía.  
-Ejemplos incluyen:
-- Preguntas sobre datos de consumo de energía.
-- Preguntas sobre el rendimiento de edificios.
-- Preguntas sobre tendencias de consumo de energía.
-- Preguntas sobre consumo de energía según el tipo de edificio.
+Clasifica una consulta como esta si la respuesta se puede responder con los datos la base de datos de Consumo de Energía, Edificios o Climaticos.  
+
 
 ## `general`
 Clasifica una consulta como esta si es una pregunta o afirmación general."""
