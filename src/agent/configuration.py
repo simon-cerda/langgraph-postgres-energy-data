@@ -9,27 +9,16 @@ from agent import prompts
 from typing import Annotated
 from sqlalchemy import create_engine, text, inspect
 from pydantic import BaseModel
-
+from sqlalchemy.inspection import ColumnInfo
 DATABASE_URL = "sqlite:///energy_consumption.db"
 
-class ColumnMetadata(BaseModel):
-    name: str
-    type: str
-    nullable: bool
-
-class TableMetadata(BaseModel):
-    name: str
-    columns: List[ColumnMetadata]
-    primary_keys: List[str] = []  # You might need to fetch primary keys explicitly
-
-class DatabaseSchema(BaseModel):
-    tables: List[TableMetadata]
 
 @dataclass(kw_only=True)
 class Configuration:
     """The configuration for the agent."""
 
     my_configurable_param: str = "changeme"
+    
     query_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="openai/gpt-4o-mini",
         metadata={
@@ -54,35 +43,40 @@ class Configuration:
             "description": "The system prompt used for responding to general questions."
         },
     )
-    database_schema: DatabaseSchema = field(init=False) # Initialize later
-    engine = field(default_factory=lambda: create_engine(f"sqlite:///{DATABASE_URL}"))
+    generate_sql_prompt: str = field(
+        default=prompts.GENERATE_SQL_PROMPT,
+        metadata={
+            "description": "The system prompt used for generating SQL queries."
+        },
+    )
+
+    database_url: str = field(
+        default="sqlite:///energy_consumption.db",
+        metadata={"description": "The URL for the SQLite database."}
+    )
 
     def __post_init__(self):
         """Load the database schema after initialization."""
+        self.engine = create_engine(self.database_url)
         self.database_schema = self._load_database_schema()
+        
 
     def _get_table_names(self) -> List[str]:
         """Returns a list of table names in the SQLite database."""
         inspector = inspect(self.engine)
         return inspector.get_table_names()
 
-    def _get_table_schema(self, table_name: str) -> TableMetadata:
+    def _get_table_schema(self, table_name: str)-> List[ColumnInfo]:
         """Returns schema details for a given table name."""
         inspector = inspect(self.engine)
         columns = inspector.get_columns(table_name)
-        column_metadata_list = [
-            ColumnMetadata(name=col["name"], type=str(col["type"]), nullable=col["nullable"])
-            for col in columns
-        ]
-        # For SQLite, primary keys are part of the column info
-        primary_keys = [col["name"] for col in columns if col.get("primary_key")]
-        return TableMetadata(name=table_name, columns=column_metadata_list, primary_keys=primary_keys)
+        return columns
 
-    def _load_database_schema(self) -> DatabaseSchema:
+    def _load_database_schema(self)-> List[List[ColumnInfo]]:
         """Loads the entire database schema."""
         table_names = self._get_table_names()
         tables = [self._get_table_schema(table) for table in table_names]
-        return DatabaseSchema(tables=tables)
+        return tables
 
     @classmethod
     def from_runnable_config(

@@ -7,7 +7,7 @@ from langchain_core.runnables import RunnableConfig
 
 
 from agent.configuration import Configuration
-from agent.state import State, InputState, Router
+from agent.state import State, InputState, Router, RelevantInfoResponse
 
 from typing import Optional, Dict, cast, Union, Literal, List
 import yaml
@@ -73,38 +73,19 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     """Extract relevant tables and columns from the database schema based on the user query."""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
-    database_schema: configuration.database_schema
+    database_schema = configuration._load_database_schema   
+    prompt = configuration.relevant_info_prompt.format(
+        schema_description=database_schema,
+        user_query=state.messages[-1].content)
+    
+    messages = [
+        {"role": "system", "content": prompt}
+    ] + state.messages
 
-    user_query = state.messages[-1].content
+    model_response = cast(RelevantInfoResponse,await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
-    # Prepare the prompt for the LLM to identify relevant tables and columns
-
-    prompt = configuration.extract_relevant_info_prompt.format(
-        user_query=user_query, schema_description=database_schema
-    )
-
-    try:
-        response = await model.ainvoke([HumanMessage(content=prompt)])
-        response_json = json.loads(response.content)
-
-        relevant_table_names = response_json.get("relevant_tables", [])
-        relevant_column_names = response_json.get("relevant_columns", {})
-
-        state.relevant_tables = [
-            table for table in database_schema.tables if table.name in relevant_table_names
-        ]
-        state.relevant_columns = relevant_column_names
-        state.validation_notes.append(f"Identified relevant tables: {[t.name for t in state.relevant_tables]}")
-        state.validation_notes.append(f"Identified relevant columns: {state.relevant_columns}")
-
-    except json.JSONDecodeError as e:
-        state.validation_notes.append(f"Error decoding JSON response: {e}")
-        state.validation_notes.append(f"Raw response: {response.content}")
-        raise
-    except Exception as e:
-        state.validation_notes.append(f"Error identifying relevant tables and columns: {e}")
-        raise
-
+    state.relevant_tables = model_response.relevant_tables
+    state.relevant_columns = model_response.relevant_columns
     return state
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
@@ -114,26 +95,19 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     # Prepare schema context for LLM
     schema_context = []
     for table in state.relevant_tables:
-        table_cols = state.relevant_columns.get(table.name, [])
-        schema_context.append(
-            f"Table: {table.name}\n"
-            f"Description: {table.description}\n"
-            f"Relevant Columns: {', '.join(table_cols)}\n"
-            f"Primary Keys: {', '.join(table.primary_keys)}"
-        )
+        schema_context.append(configuration._get_table_schema(table))
     
-    prompt = configuration.general_system_prompt.format(
+    relevant_columns = state.relevant_columns
+
+    
+    prompt = configuration.generate_sql_prompt.format(
         schema_context="\n\n".join(schema_context),
+        relevant_columns = relevant_columns,
         user_query=state.messages[-1].content
     )
     
-    try:
-        response = model.ainvoke([HumanMessage(content=prompt)]).content
-        state.sql_query = response.strip()
-        state.validation_notes.append("SQL generated successfully")
-    except Exception as e:
-        state.validation_notes.append(f"SQL generation error: {str(e)}")
-        raise
+    response = await model.ainvoke([HumanMessage(content=prompt)]).content
+    state.sql_query = response.strip()
     
     return state
 
@@ -204,16 +178,14 @@ workflow = StateGraph(State,input=InputState, config_schema=Configuration)
 workflow.add_node("intent_detection", detect_intent)
 workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
-workflow.add_node("table_validation", validate_tables)
-workflow.add_node("column_pruning", prune_columns)
+workflow.add_node("table_validation", extract_relevant_info)
 workflow.add_node("sql_generation", generate_sql)
 workflow.add_node("query_execution", execute_query)
 workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")
 workflow.add_conditional_edges("intent_detection", route_query)
-workflow.add_edge("table_validation", "column_pruning")
-workflow.add_edge("column_pruning", "sql_generation")
+workflow.add_edge("table_validation", "sql_generation")
 workflow.add_edge("sql_generation", "query_execution")
 workflow.add_edge("query_execution", "explanation_generation")
 workflow.add_edge("ask_for_more_info", END)
