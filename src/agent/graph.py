@@ -50,21 +50,21 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     return {"router": response}
 
 
-def route_query(state: State) -> Literal["table_validation", "ask_for_more_info", "respond_to_general_query"]:
+def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_info", "respond_to_general_query"]:
     """Determine the next step based on the query classification.
 
     Args:
         state (State): The current state of the agent, including the router's classification.
 
     Returns:
-        Literal["table_validation", "request_more_info", "llm_response"]: The next step to take.
+        Literal["extract_relevant_info", "request_more_info", "llm_response"]: The next step to take.
 
     Raises:
         ValueError: If an unknown router type is encountered.
     """
     _type = state.router["type"]
     if _type == "database":
-        return "table_validation"
+        return "extract_relevant_info"
     elif _type == "more-info":
         return "ask_for_more_info"
     elif _type == "general":
@@ -181,14 +181,14 @@ workflow = StateGraph(State,input=InputState, config_schema=Configuration)
 workflow.add_node("intent_detection", detect_intent)
 workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
-workflow.add_node("table_validation", extract_relevant_info)
+workflow.add_node("extract_relevant_info", extract_relevant_info)
 workflow.add_node("sql_generation", generate_sql)
 workflow.add_node("query_execution", execute_query)
 workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")
 workflow.add_conditional_edges("intent_detection", route_query)
-workflow.add_edge("table_validation", "sql_generation")
+workflow.add_edge("extract_relevant_info", "sql_generation")
 workflow.add_edge("sql_generation", "query_execution")
 workflow.add_edge("query_execution", "explanation_generation")
 workflow.add_edge("ask_for_more_info", END)

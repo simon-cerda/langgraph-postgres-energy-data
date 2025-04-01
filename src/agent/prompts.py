@@ -70,21 +70,16 @@ Question: {input}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
 
-RELEVANT_INFO_PROMPT = """Given the following user query: "{user_query}" and the following database schema:
+RELEVANT_INFO_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema.
 
-{schema_description}
+## **Instructions:**
+- The database schema is provided as context. Carefully review its structure, including table names and column descriptions.
+- The user's query may refer to specific tables, columns, or concepts. Identify the most relevant tables and columns based on the query's intent.
+- If the query is ambiguous, select the most probable tables and columns based on typical database usage patterns.
+- If the query references multiple concepts, return a structured response listing all relevant tables and columns.
+- Do not generate data; your goal is only to extract relevant schema elements.
 
-Identify the relevant tables and the specific columns within those tables that are likely needed to answer the query.
-
-Respond with a JSON object in the following format:
-{{
-  "relevant_tables": ["table_name_1", "table_name_2"],
-  "relevant_columns": {{
-    "table_name_1": ["column_name_a", "column_name_b"],
-    "table_name_2": ["column_name_c"]
-  }}
-}}
-
-If no tables are relevant, return an empty list for "relevant_tables" and an empty dictionary for "relevant_columns".
-"""
+## **Context:**
+- **Database Schema:** `{schema_description}`
+- **User Query:** `{user_query}`"""
     
