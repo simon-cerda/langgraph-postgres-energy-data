@@ -55,7 +55,7 @@ class Router(TypedDict):
     """Classify user query."""
 
     logic: str
-    type: Literal["more-info", "langchain", "general"]
+    type: Literal["more-info", "database", "general"]
 
 
 
@@ -71,7 +71,7 @@ class State(InputState):
     explanation: Optional[str] = None
     validation_notes: List[str] = Field(default_factory=list)
 
-class RelevantInfoResponse(BaseModel):
+class RelevantInfoResponse(TypedDict):
     """The response to a relevant info query."""
 
     relevant_tables: List[str]

@@ -43,6 +43,12 @@ class Configuration:
             "description": "The system prompt used for responding to general questions."
         },
     )
+    relevant_info_system_prompt: str = field(
+        default=prompts.RELEVANT_INFO_SYSTEM_PROMPT,
+        metadata={
+            "description": "The system prompt used for responding to relevant questions."
+        },
+    )
     generate_sql_prompt: str = field(
         default=prompts.GENERATE_SQL_PROMPT,
         metadata={

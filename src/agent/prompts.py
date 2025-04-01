@@ -70,7 +70,7 @@ Question: {input}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
 
-RELEVANT_INFO_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema.
+RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema.
 
 ## **Instructions:**
 - The database schema is provided as context. Carefully review its structure, including table names and column descriptions.

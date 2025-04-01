@@ -77,7 +77,7 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
     database_schema = configuration._load_database_schema   
-    prompt = configuration.relevant_info_prompt.format(
+    prompt = configuration.relevant_info_system_prompt.format(
         schema_description=database_schema,
         user_query=state.messages[-1].content)
     
@@ -86,10 +86,8 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     ] + state.messages
 
     model_response = cast(RelevantInfoResponse,await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
-
-    state.relevant_tables = model_response.relevant_tables
-    state.relevant_columns = model_response.relevant_columns
-    return state
+    
+    return model_response
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
