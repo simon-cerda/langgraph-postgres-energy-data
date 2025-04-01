@@ -12,8 +12,6 @@ from agent.state import State, InputState, Router, RelevantInfoResponse
 from typing import Optional, Dict, cast, Union, Literal, List
 import yaml
 
-
-from langchain_openai import ChatOpenAI 
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 import psycopg2
 from langgraph.graph import END, START, StateGraph
@@ -23,6 +21,8 @@ import json
 from pathlib import Path
 
 
+
+
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
 
@@ -30,17 +30,20 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     within the conversation flow.
 
     Args:
-        state (AgentState): The current state of the agent, including conversation history.
+        state (State): The current state of the agent, including conversation history.
         config (RunnableConfig): Configuration with the model used for query analysis.
 
     Returns:
         dict[str, Router]: A dictionary containing the 'router' key with the classification result (classification type and logic).
     """
     configuration = Configuration.from_runnable_config(config)
+    
     model = load_chat_model(configuration.query_model)
+    
     messages = [
         {"role": "system", "content": configuration.router_system_prompt}
     ] + state.messages
+    
     response = cast(
         Router, await model.with_structured_output(Router).ainvoke(messages)
     )
