@@ -83,7 +83,7 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     # Formatea el esquema para usarlo en el prompt (puedes ajustar esto según tus necesidades)
     schema_description = str(database_schema)  # Convierte el diccionario a string
 
-    prompt = configuration.relevant_info_prompt.format(
+    prompt = configuration.relevant_info_system_prompt.format(
         schema_description=schema_description
     )
 

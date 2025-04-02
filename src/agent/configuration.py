@@ -51,6 +51,7 @@ class Configuration:
     """The configuration for the agent."""
 
     my_configurable_param: str = "changeme"
+    
     query_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="openai/gpt-4o-mini",
         metadata={
@@ -91,12 +92,6 @@ class Configuration:
         default=prompts.EXPLAIN_RESULTS_PROMPT,
         metadata={
             "description": "The system prompt used for explaining the results of SQL queries."
-        },
-    )
-    relevant_info_prompt: str = field(
-        default=prompts.RELEVANT_INFO_PROMPT,
-        metadata={
-            "description": "The system prompt used for extracting relevant tables and columns from the database schema."
         },
     )
     database_url: str = field(
