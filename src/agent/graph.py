@@ -19,8 +19,8 @@ from agent.utils import load_chat_model
 import json
 from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
-
-
+from typing_extensions import Annotated
+from typing_extensions import TypedDict
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
@@ -84,8 +84,7 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     schema_description = str(database_schema)  # Convierte el diccionario a string
 
     prompt = configuration.relevant_info_prompt.format(
-        schema_description=schema_description,
-        user_query=state.messages[-1].content
+        schema_description=schema_description
     )
 
     messages = [
@@ -94,14 +93,17 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
-    state.relevant_tables = model_response.relevant_tables
-    state.relevant_columns = model_response.relevant_columns
-    return state
+    return {"relevant_tablesl": model_response.relevant_tables, "relevant_columns": model_response.relevant_columns}
+
+class QueryOutput(TypedDict):
+    """Generated SQL query."""
+
+    query: Annotated[str, ..., "Syntactically valid SQL query."]
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
     # Prepare schema context for LLM
     schema_context = []
     for table in state.relevant_tables:
@@ -112,14 +114,17 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     
     prompt = configuration.generate_sql_prompt.format(
         schema_context="\n\n".join(schema_context),
-        relevant_columns = relevant_columns,
-        user_query=state.messages[-1].content
+        relevant_columns = relevant_columns
     )
+
+    messages = [
+        {"role": "system", "content": prompt}
+    ] + state.messages
     
-    response = await model.ainvoke([HumanMessage(content=prompt)]).content
-    state.sql_query = response.strip()
     
-    return state
+    response = await model.ainvoke(messages) 
+    
+    return {"sql_query":response['query'].strip()}
 
 #TODO - Add validation for SQL query
 async def execute_sql_query(state: State, *, config: RunnableConfig) -> State:
@@ -131,23 +136,28 @@ async def execute_sql_query(state: State, *, config: RunnableConfig) -> State:
     try:
         with db_handler.engine.connect() as connection:
             result = connection.execute(state.sql_query)
-            state.query_result = result.fetchall()
+            query_result = result.fetchall()
             
     except SQLAlchemyError as e:
-        state.query_result = f"Error al ejecutar la consulta SELECT: {e}"
+        query_result = f"Error al ejecutar la consulta SELECT: {e}"
     except Exception as e:
-        state.query_result = f"Ocurrió un error inesperado: {e}"
+        query_result = f"Ocurrió un error inesperado: {e}"
 
-    return state
+    return {'query_result': query_result}
 
 async def generate_explanation(state: State,config:RunnableConfig) -> State:
-    prompt = f"Explain the following SQL query and its results in simple terms:\nQuery: {state.sql_query}\nResults: {state.query_result}"
+
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model)
-    response = model([HumanMessage(content=prompt)]).content
-    state.explanation = response.strip()
     
-    return state
+    prompt = configuration.explain_results_prompt.format(
+        messages="\n\n".join([message.content for message in state.messages]), 
+        sql_results=state.query_result)
+
+    model = load_chat_model(configuration.query_model)
+
+    response = await model.ainvoke(prompt)
+    
+    return {"messages": [response]}
 
 
 
@@ -202,7 +212,7 @@ workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
 workflow.add_node("extract_relevant_info", extract_relevant_info)
 workflow.add_node("sql_generation", generate_sql)
-workflow.add_node("query_execution", execute_query)
+workflow.add_node("query_execution", execute_sql_query)
 workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")

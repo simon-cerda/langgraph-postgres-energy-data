@@ -50,7 +50,6 @@ Pay attention to use only the column names that you can see in the schema descri
 Only use the following tables:
 {table_info}
 
-Question: {input}
 """
 
 GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialect} database. Follow these rules:
@@ -81,5 +80,13 @@ RELEVANT_INFO_PROMPT = """You are an intelligent database assistant. Your task i
 
 ## **Context:**
 - **Database Schema:** `{schema_description}`
-- **User Query:** `{user_query}`"""
-    
+
+"""
+
+EXPLAIN_RESULTS_PROMPT ="""Responde a la pregunta del usuario usando los resultados de la consulta SQL.
+
+Mensajes: 
+{messages}
+Resultados SQL:
+{sql_results}
+"""

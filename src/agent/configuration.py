@@ -81,6 +81,18 @@ class Configuration:
             "description": "The system prompt used for generating SQL queries."
         },
     )
+    explain_results_prompt: str = field(
+        default=prompts.EXPLAIN_RESULTS_PROMPT,
+        metadata={
+            "description": "The system prompt used for explaining the results of SQL queries."
+        },
+    )
+    relevant_info_prompt: str = field(
+        default=prompts.RELEVANT_INFO_PROMPT,
+        metadata={
+            "description": "The system prompt used for extracting relevant tables and columns from the database schema."
+        },
+    )
     database_url: str = field(
         default=DATABASE_URL,
         metadata={"description": "The URL for the SQLite database."}

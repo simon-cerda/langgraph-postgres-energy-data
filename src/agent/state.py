@@ -68,8 +68,7 @@ class State(InputState):
     relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
     sql_query: Optional[str] = None
     query_result: Optional[str] = None
-    explanation: Optional[str] = None
-    validation_notes: List[str] = Field(default_factory=list)
+
 
 class RelevantInfoResponse(BaseModel):
     """The response to a relevant info query."""
