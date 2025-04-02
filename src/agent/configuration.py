@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, fields
 from typing import List, Optional
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import RunnableConfig,ensure_config
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import OperationalError,SQLAlchemyError
 from typing import Annotated
@@ -98,7 +98,7 @@ class Configuration:
         default=DATABASE_URL,
         metadata={"description": "The URL for the SQLite database."}
     )
-
+    
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
@@ -111,5 +111,4 @@ class Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         configurable = (config.get("configurable") or {}) if config else {}
         _fields = {f.name for f in fields(cls) if f.init}
-        instance = cls(**{k: v for k, v in configurable.items() if k in _fields})
-        return instance
+        return cls(**{k: v for k, v in configurable.items() if k in _fields})
