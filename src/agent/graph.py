@@ -6,7 +6,7 @@ from typing import Any, Dict
 from langchain_core.runnables import RunnableConfig
 
 
-from agent.configuration import Configuration
+from agent.configuration import Configuration,DatabaseHandler
 from agent.state import State, InputState, Router, RelevantInfoResponse
 
 from typing import Optional, Dict, cast, Union, Literal, List
@@ -15,11 +15,10 @@ import yaml
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 import psycopg2
 from langgraph.graph import END, START, StateGraph
-from agent.configuration import Configuration
 from agent.utils import load_chat_model
 import json
 from pathlib import Path
-
+from sqlalchemy.exc import SQLAlchemyError
 
 
 
@@ -76,16 +75,24 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     """Extract relevant tables and columns from the database schema based on the user query."""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
-    database_schema = configuration._load_database_schema   
+
+    # Usa DatabaseHandler para obtener el esquema
+    db_handler = DatabaseHandler(configuration.database_url)
+    database_schema = db_handler.load_database_schema()
+
+    # Formatea el esquema para usarlo en el prompt (puedes ajustar esto según tus necesidades)
+    schema_description = str(database_schema)  # Convierte el diccionario a string
+
     prompt = configuration.relevant_info_prompt.format(
-        schema_description=database_schema,
-        user_query=state.messages[-1].content)
-    
+        schema_description=schema_description,
+        user_query=state.messages[-1].content
+    )
+
     messages = [
         {"role": "system", "content": prompt}
     ] + state.messages
 
-    model_response = cast(RelevantInfoResponse,await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
+    model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
     state.relevant_tables = model_response.relevant_tables
     state.relevant_columns = model_response.relevant_columns
@@ -115,9 +122,21 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     return state
 
 #TODO - Add validation for SQL query
-async def execute_query(state: State,db) -> State:
+async def execute_sql_query(state: State, *, config: RunnableConfig) -> State:
+    """Ejecuta una consulta SQL y maneja errores."""
 
-    state.query_result = db.run_no_throw(state.sql_query)
+    configuration = Configuration.from_runnable_config(config)
+    db_handler = DatabaseHandler(configuration.database_url)
+
+    try:
+        with db_handler.engine.connect() as connection:
+            result = connection.execute(state.sql_query)
+            state.query_result = result.fetchall()
+            
+    except SQLAlchemyError as e:
+        state.query_result = f"Error al ejecutar la consulta SELECT: {e}"
+    except Exception as e:
+        state.query_result = f"Ocurrió un error inesperado: {e}"
 
     return state
 
