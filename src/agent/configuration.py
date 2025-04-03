@@ -17,6 +17,7 @@ class DatabaseHandler:
         try:
             self.engine = create_engine(database_url)
             self.dialect = self.engine.dialect
+            self.top_k = 5  # Default value for top_k
         except OperationalError as e:
             print(f"Error al conectar a la base de datos: {e}")
             self.engine = None
@@ -33,7 +34,15 @@ class DatabaseHandler:
     def get_table_schema(self, table_name: str) -> List[dict]:
         inspector = inspect(self.engine)
         try:
-            return inspector.get_columns(table_name)
+            # Get the schema of the table
+            columns = inspector.get_columns(table_name)
+            schema = "table_name: " + table_name + "\n"
+            schema += "columns: \n"
+            for column in columns:
+                schema += f"  - name: {column['name']}\n"
+                schema += f"    type: {column['type'].__class__.__name__}\n"
+            
+            return schema
         except SQLAlchemyError as e:
             print(f"Error al obtener el esquema de la tabla {table_name}: {e}")
             return []
@@ -83,7 +92,7 @@ class Configuration:
         },
     )
     generate_sql_prompt: str = field(
-        default=prompts.GENERATE_SQL_PROMPT,
+        default=prompts.GENERATE_SQL_PROMPT_V2,
         metadata={
             "description": "The system prompt used for generating SQL queries."
         },

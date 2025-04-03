@@ -11,6 +11,9 @@ from langchain.chat_models import init_chat_model
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
 
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
+
 def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     """Load a chat model from a fully specified name.
 
@@ -23,3 +26,27 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
         provider = ""
         model = fully_specified_name
     return init_chat_model(model, model_provider=provider)
+
+
+def execute_sql_query(query:str,engine):
+    """Execute a SQL query on the database.
+
+    Args:
+        query (str): The SQL query to execute.
+
+    Returns:
+        str: The result of the query execution.
+    """
+
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text(query))
+            query_result = result.fetchall()
+            
+    except SQLAlchemyError as e:
+        query_result = f"Error al ejecutar la consulta SELECT: {e}"
+    except Exception as e:
+        query_result = f"Ocurrió un error inesperado: {e}"
+    
+    return query_result
+

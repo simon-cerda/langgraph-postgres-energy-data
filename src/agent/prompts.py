@@ -6,13 +6,17 @@ Un usuario te hará una consulta. Tu primera tarea es clasificar el tipo de cons
 
 ## `more-info`
 Clasifica una consulta como esta si necesitas más información antes de poder ayudar al usuario. Ejemplos incluyen:
-- "¿Cuál es el consumo del edificio?" (sin especificar qué edificio o período).
+- ¿Cuál es el consumo del edificio?" (sin especificar qué edificio o período).
 - "Dame información sobre eficiencia energética." (pregunta muy general).
 - "Quiero datos de consumo." (no está claro qué tipo de datos o rango de fechas).
 
 
 ## `database`
-Clasifica una consulta como esta si la pregunta apunta a los datos la base de datos de consumo de energía, edificios o climaticos.  
+Clasifica una consulta como esta si la pregunta apunta a los datos de energía, edificios o climáticos, incluyendo preguntas sobre la estructura, disponibilidad o significado de las variables en la base de datos. Ejemplos incluyen:
+- ¿Cuál fue el edificio con mayor consumo energético en enero?
+- ¿Qué edificios tienen la mayor eficiencia energética?
+- ¿Cuál es el consumo promedio de energía por edificio?
+- Cuantos edificios hay en mi base de datos?
 
 
 ## `general`
@@ -48,7 +52,7 @@ Never query for all the columns from a specific table, only ask for a the few re
 Pay attention to use only the column names that you can see in the schema description. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
 
 Only use the following tables:
-{table_info}
+{schema_context}
 
 """
 
@@ -63,9 +67,7 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 7. Use proper quoting for identifiers if needed
 
 Available tables:
-{table_info}
-
-Question: {input}
+{schema_context}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
 

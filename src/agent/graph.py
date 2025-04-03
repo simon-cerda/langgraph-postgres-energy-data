@@ -10,15 +10,12 @@ from agent.configuration import Configuration,DatabaseHandler
 from agent.state import State, InputState, Router, RelevantInfoResponse
 
 from typing import Optional, Dict, cast, Union, Literal, List
-import yaml
 
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
-import psycopg2
+
 from langgraph.graph import END, START, StateGraph
-from agent.utils import load_chat_model
-import json
-from pathlib import Path
-from sqlalchemy.exc import SQLAlchemyError
+from agent.utils import load_chat_model, execute_sql_query
+
 from typing_extensions import Annotated
 from typing_extensions import TypedDict
 
@@ -93,7 +90,8 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
-    return {"relevant_tablesl": model_response.relevant_tables, "relevant_columns": model_response.relevant_columns}
+    #Change to Dict format
+    return {"relevant_tables": model_response["relevant_tables"], "relevant_columns": model_response["relevant_columns"]}
 
 class QueryOutput(TypedDict):
     """Generated SQL query."""
@@ -104,17 +102,19 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
+
+    databashandler = DatabaseHandler(configuration.database_url)
     # Prepare schema context for LLM
     schema_context = []
     for table in state.relevant_tables:
-        schema_context.append(configuration._get_table_schema(table))
-    
-    relevant_columns = state.relevant_columns
-
+        schema_context.append(databashandler.get_table_schema(table))
+ 
     
     prompt = configuration.generate_sql_prompt.format(
         schema_context="\n\n".join(schema_context),
-        relevant_columns = relevant_columns
+        relevant_columns = state.relevant_columns,
+        dialect = databashandler.dialect,
+        top_k = databashandler.top_k,
     )
 
     messages = [
@@ -127,21 +127,14 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     return {"sql_query":response['query'].strip()}
 
 #TODO - Add validation for SQL query
-async def execute_sql_query(state: State, *, config: RunnableConfig) -> State:
+async def get_database_results(state: State, *, config: RunnableConfig) -> State:
     """Ejecuta una consulta SQL y maneja errores."""
 
     configuration = Configuration.from_runnable_config(config)
     db_handler = DatabaseHandler(configuration.database_url)
 
-    try:
-        with db_handler.engine.connect() as connection:
-            result = connection.execute(state.sql_query)
-            query_result = result.fetchall()
-            
-    except SQLAlchemyError as e:
-        query_result = f"Error al ejecutar la consulta SELECT: {e}"
-    except Exception as e:
-        query_result = f"Ocurrió un error inesperado: {e}"
+    query_result = execute_sql_query(query=state.sql_query,
+                                     engine=db_handler.engine)
 
     return {'query_result': query_result}
 
@@ -212,7 +205,7 @@ workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
 workflow.add_node("extract_relevant_info", extract_relevant_info)
 workflow.add_node("sql_generation", generate_sql)
-workflow.add_node("query_execution", execute_sql_query)
+workflow.add_node("query_execution", get_database_results)
 workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")
