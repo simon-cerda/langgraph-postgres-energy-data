@@ -51,13 +51,13 @@ class InputState:
         If a message in `right` has the same ID as a message in `left`, the
         message from `right` will replace the message from `left`."""
 
-class Router(TypedDict):
+class Router(BaseModel):
     """Classify user query."""
-
     logic: str
     type: Literal["more-info", "database", "general"]
 
-class QueryOutput(TypedDict):
+
+class QueryOutput(BaseModel):
     """Generated SQL query."""
 
     query: Annotated[str, ..., "Syntactically valid SQL query."]

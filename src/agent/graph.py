@@ -41,7 +41,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     response = cast(
         Router, await model.with_structured_output(Router).ainvoke(messages)
     )
-    return {"router": response}
+    return {"router": {"type":response.type, "logic":response.logic}}
 
 
 def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_info", "respond_to_general_query"]:
@@ -115,9 +115,9 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     ] + state.messages
     
     
-    response = await model.ainvoke(messages) 
+    response = await model.ainvoke(messages)
     
-    return {"sql_query":response['query'].strip()}
+    return {"sql_query":response.query.strip()}
 
 #TODO - Add validation for SQL query
 async def get_database_results(state: State, *, config: RunnableConfig) -> State:
