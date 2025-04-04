@@ -1,23 +1,21 @@
-"""Define a custom agentic worfklow to interact with a database.
+"""Define the workflow for the agent.
+This module contains the workflow for the agent, including the nodes and edges of the graph.
 """
 
-from typing import Any, Dict
+
+from typing import cast, Literal
+from typing_extensions import Annotated
+from typing_extensions import TypedDict
 
 from langchain_core.runnables import RunnableConfig
-
-
-from agent.configuration import Configuration,DatabaseHandler
-from agent.state import State, InputState, Router, RelevantInfoResponse
-
-from typing import Optional, Dict, cast, Union, Literal, List
-
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 
 from langgraph.graph import END, START, StateGraph
+
+from agent.configuration import Configuration,DatabaseHandler
+from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
 from agent.utils import load_chat_model, execute_sql_query
 
-from typing_extensions import Annotated
-from typing_extensions import TypedDict
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
@@ -53,7 +51,7 @@ def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_
         state (State): The current state of the agent, including the router's classification.
 
     Returns:
-        Literal["extract_relevant_info", "request_more_info", "llm_response"]: The next step to take.
+        Literal["extract_relevant_info", "ask_for_more_info", "respond_to_general_query"]: The next step to take.
 
     Raises:
         ValueError: If an unknown router type is encountered.
@@ -77,8 +75,8 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     db_handler = DatabaseHandler(configuration.database_url)
     database_schema = db_handler.load_database_schema()
 
-    # Formatea el esquema para usarlo en el prompt (puedes ajustar esto según tus necesidades)
-    schema_description = str(database_schema)  # Convierte el diccionario a string
+    # Formatea el esquema para usarlo en el prompt 
+    schema_description = str(database_schema) 
 
     prompt = configuration.relevant_info_system_prompt.format(
         schema_description=schema_description
@@ -90,31 +88,26 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
-    #Change to Dict format
-    return {"relevant_tables": model_response["relevant_tables"], "relevant_columns": model_response["relevant_columns"]}
+    return model_response
 
-class QueryOutput(TypedDict):
-    """Generated SQL query."""
-
-    query: Annotated[str, ..., "Syntactically valid SQL query."]
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
 
-    databashandler = DatabaseHandler(configuration.database_url)
+    db_handler = DatabaseHandler(configuration.database_url)
     # Prepare schema context for LLM
     schema_context = []
     for table in state.relevant_tables:
-        schema_context.append(databashandler.get_table_schema(table))
+        schema_context.append(db_handler.get_table_schema(table))
  
     
     prompt = configuration.generate_sql_prompt.format(
         schema_context="\n\n".join(schema_context),
         relevant_columns = state.relevant_columns,
-        dialect = databashandler.dialect,
-        top_k = databashandler.top_k,
+        dialect = db_handler.dialect,
+        top_k = db_handler.top_k,
     )
 
     messages = [
@@ -138,6 +131,8 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
 
     return {'query_result': query_result}
 
+
+
 async def generate_explanation(state: State,config:RunnableConfig) -> State:
 
     configuration = Configuration.from_runnable_config(config)
@@ -154,7 +149,7 @@ async def generate_explanation(state: State,config:RunnableConfig) -> State:
 
 
 
-async def respond_to_general_query(state: State, *, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+async def respond_to_general_query(state: State, *, config: RunnableConfig) -> State:
     """Generate a response to a general query not related to LangChain.
 
     This node is called when the router classifies the query as a general question.
@@ -175,7 +170,7 @@ async def respond_to_general_query(state: State, *, config: RunnableConfig) -> d
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 
-async def ask_for_more_info(state: State, *, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+async def ask_for_more_info(state: State, *, config: RunnableConfig) -> State:
     """Generate a response asking the user for more information.
 
     This node is called when the router determines that more information is needed from the user.

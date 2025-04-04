@@ -57,6 +57,10 @@ class Router(TypedDict):
     logic: str
     type: Literal["more-info", "database", "general"]
 
+class QueryOutput(TypedDict):
+    """Generated SQL query."""
+
+    query: Annotated[str, ..., "Syntactically valid SQL query."]
 
 
 @dataclass(kw_only=True)
