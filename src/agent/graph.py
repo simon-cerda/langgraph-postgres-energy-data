@@ -14,7 +14,8 @@ from langgraph.graph import END, START, StateGraph
 
 from agent.configuration import Configuration,DatabaseHandler
 from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
-from agent.utils import load_chat_model, execute_sql_query
+from agent.utils import load_chat_model, execute_sql_query, get_embedding, vectorstore
+from vectorstore.loader import load_vectorstore
 
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
@@ -90,6 +91,23 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     return model_response
 
+async def retrieve_relevant_values(state: State) -> State:
+    query_text = state.original_query  # o donde tengas la query en texto
+    relevant_columns = state.relevant_columns  # columnas detectadas antes
+    
+    # Hacemos embedding de la query
+    query_embedding = get_embedding(query_text)
+    
+    # Buscamos en el vectorstore limitado a esas columnas
+    relevant_values = []
+    for col in relevant_columns:
+        matches = vectorstore[col].search(query_embedding, k=3)  # top-3 valores
+        for match in matches:
+            relevant_values.append(match.metadata["value"])  # ajustá si tu vectorstore lo guarda distinto
+
+    # Guardamos en el state
+    state.relevant_values = ", ".join(set(relevant_values))  # como string, como pediste
+    return state
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""

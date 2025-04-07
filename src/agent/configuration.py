@@ -22,6 +22,7 @@ DB_SCHEMA = os.getenv('DB_SCHEMA')
 # Construct the database URL
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
 class DatabaseHandler:
     """Handles database interactions."""
 

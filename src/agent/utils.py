@@ -10,9 +10,11 @@ from typing import Optional
 from langchain.chat_models import init_chat_model
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
-
+from sentence_transformers import SentenceTransformer
+import faiss
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+import numpy as np
 
 def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     """Load a chat model from a fully specified name.
@@ -51,4 +53,3 @@ def execute_sql_query(query:str,schema,engine):
         query_result = f"Ocurrió un error inesperado: {e}"
     
     return query_result
-
