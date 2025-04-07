@@ -5,9 +5,22 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import OperationalError,SQLAlchemyError
 from typing import Annotated
 from agent import prompts
+import os
+from dotenv import load_dotenv
+# DATABASE_URL = "sqlite:///energy_consumption.db"
 
+# Load environment variables from .env file
+load_dotenv()
+# Get the variables
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_NAME = os.getenv('DB_NAME')
+DB_SCHEMA = os.getenv('DB_SCHEMA')
 
-DATABASE_URL = "sqlite:///energy_consumption.db"
+# Construct the database URL
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 class DatabaseHandler:
     """Handles database interactions."""
@@ -16,8 +29,9 @@ class DatabaseHandler:
      
         try:
             self.engine = create_engine(database_url)
-            self.dialect = self.engine.dialect
+            self.dialect = self.engine.dialect.name
             self.top_k = 5  # Default value for top_k
+            self.schema_name = DB_SCHEMA
         except OperationalError as e:
             print(f"Error al conectar a la base de datos: {e}")
             self.engine = None
@@ -26,16 +40,16 @@ class DatabaseHandler:
     def get_table_names(self) -> List[str]:
         inspector = inspect(self.engine)
         try:
-            return inspector.get_table_names()
+            return inspector.get_table_names(schema=self.schema_name)
         except SQLAlchemyError as e:
             print(f"Error al obtener nombres de tablas: {e}")
             return []
 
-    def get_table_schema(self, table_name: str) -> List[dict]:
+    def get_table_schema(self,table_name: str) -> List[dict]:
         inspector = inspect(self.engine)
         try:
             # Get the schema of the table
-            columns = inspector.get_columns(table_name)
+            columns = inspector.get_columns(table_name, schema=self.schema_name)
             schema = "table_name: " + table_name + "\n"
             schema += "columns: \n"
             for column in columns:

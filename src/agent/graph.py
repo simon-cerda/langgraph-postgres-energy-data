@@ -98,7 +98,7 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
 
     db_handler = DatabaseHandler(configuration.database_url)
     # Prepare schema context for LLM
-    schema_context = []
+    schema_context = ["schema_name: " + db_handler.schema_name]
     for table in state.relevant_tables:
         schema_context.append(db_handler.get_table_schema(table))
  
@@ -127,6 +127,7 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
     db_handler = DatabaseHandler(configuration.database_url)
 
     query_result = execute_sql_query(query=state.sql_query,
+                                     schema=db_handler.schema_name, 
                                      engine=db_handler.engine)
 
     return {'query_result': query_result}

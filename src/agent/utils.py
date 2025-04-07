@@ -28,7 +28,7 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     return init_chat_model(model, model_provider=provider)
 
 
-def execute_sql_query(query:str,engine):
+def execute_sql_query(query:str,schema,engine):
     """Execute a SQL query on the database.
 
     Args:
@@ -40,6 +40,8 @@ def execute_sql_query(query:str,engine):
 
     try:
         with engine.connect() as connection:
+            if schema:
+                connection.execute(text(f"SET search_path TO {schema}"))
             result = connection.execute(text(query))
             query_result = result.fetchall()
             

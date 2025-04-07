@@ -72,6 +72,7 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 5. Order results meaningfully when appropriate
 6. Include JOINs when needed using primary keys
 7. Use proper quoting for identifiers if needed
+8. Always include the schema name in the query
 
 Available tables:
 {schema_context}
