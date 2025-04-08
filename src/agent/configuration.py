@@ -14,7 +14,7 @@ import faiss
 import numpy as np
 import json
 from functools import cached_property
-
+import pickle
 # DATABASE_URL = "sqlite:///energy_consumption.db"
 
 # Load environment variables from .env file
@@ -44,29 +44,12 @@ class VectorStoreHandler:
         self.embedding_model = model or self.embedding_model()
 
     def save_vectorstore(self,vectorstore: dict, save_path: str):
-        os.makedirs(save_path, exist_ok=True)
-        meta = {}
-
-        for col, data in vectorstore.items():
-            index_path = os.path.join(save_path, f"{col}.index")
-            faiss.write_index(data["index"], index_path)
-            meta[col] = data["values"]  # Just save values as metadata
-
-        with open(os.path.join(save_path, "metadata.json"), "w") as f:
-            json.dump(meta, f)
+        with open(save_path, "wb") as f:
+            pickle.dump(vectorstore, f)
 
     def load_vectorstore(self,save_path: str) -> dict:
-        vectorstore = {}
-        with open(os.path.join(save_path, "metadata.json")) as f:
-            meta = json.load(f)
-
-        for col, values in meta.items():
-            index_path = os.path.join(save_path, f"{col}.index")
-            index = faiss.read_index(index_path)
-            vectorstore[col] = {
-                "index": index,
-                "values": values
-            }
+        with open(save_path, "rb") as f:
+            vectorstore = pickle.load(f)
 
         return vectorstore
 
@@ -207,6 +190,7 @@ class Configuration:
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
         self.database_schema = self.db_handler.load_database_schema()
+        self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path, self.embedding_model)
  
 
     @classmethod

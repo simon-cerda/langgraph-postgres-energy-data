@@ -69,6 +69,7 @@ def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_
 async def extract_relevant_info(state: State, *, config: RunnableConfig) -> State:
     """Extract relevant tables and columns from the database schema based on the user query."""
     configuration = Configuration.from_runnable_config(config)
+
     model = load_chat_model(configuration.query_model)
 
 
@@ -90,11 +91,32 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     return model_response
 
-#TODO - Work on this Node
 def retrieve_relevant_values(state: State, config: Configuration) -> State:
-
     """Retrieve relevant values from the database based on the user's query."""
+    configuration = Configuration.from_runnable_config(config)
+    vector_handler = configuration.vectorstore_handler
+    relevant_values_dict = {}
 
+    for table, columns in state.relevant_columns.items():
+        for column in columns:
+            # Skip if column not in vectorstore
+            if column not in vector_handler.vectorstore:
+                continue
+
+            # Get index and values
+            index = vector_handler.vectorstore[column]["index"]
+            values = vector_handler.vectorstore[column]["values"]
+
+            # Compute embedding for the column name
+            column_embedding = configuration.embedding_model.encode([column])
+            D, I = index.search(np.array(column_embedding), 3)
+
+            # Collect top-k relevant values
+            top_values = [values[i] for i in I[0]]
+            relevant_values_dict[column] = top_values
+
+    # Save to state
+    state.relevant_values = relevant_values_dict  # or convert to list if needed
     return state
 
 
@@ -118,9 +140,7 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
         top_k = db_handler.top_k,
     )
 
-    messages = [
-       [SystemMessage(content=prompt)] + state.messages
-    ] + state.messages
+    messages = [SystemMessage(content=prompt)] + state.messages
     
     
     response = await model.ainvoke(messages)
@@ -175,7 +195,7 @@ async def respond_to_general_query(state: State, *, config: RunnableConfig) -> S
     system_prompt = configuration.general_system_prompt.format(
         logic=state.router["logic"]
     )
-    messages =[SystemMessage(content=system_prompt)] + state.messages + state.messages
+    messages =[SystemMessage(content=system_prompt)] + state.messages
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 
