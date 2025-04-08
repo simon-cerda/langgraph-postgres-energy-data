@@ -72,6 +72,7 @@ class State(InputState):
     relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
     sql_query: Optional[str] = None
     query_result: Optional[str] = None
+    relevant_values: Optional[List[str]] = None
 
 
 class RelevantInfoResponse(TypedDict):

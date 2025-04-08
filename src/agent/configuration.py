@@ -7,6 +7,14 @@ from typing import Annotated
 from agent import prompts
 import os
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+import json
+from functools import cached_property
+
 # DATABASE_URL = "sqlite:///energy_consumption.db"
 
 # Load environment variables from .env file
@@ -19,10 +27,70 @@ DB_PORT = os.getenv('DB_PORT')
 DB_NAME = os.getenv('DB_NAME')
 DB_SCHEMA = os.getenv('DB_SCHEMA')
 
+if not DB_USER:
+    raise ValueError("DB_USER environment variable is required.")
 # Construct the database URL
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
+class VectorStoreHandler:
+    """Handles vector store interactions."""
+
+    def __init__(self, vectorstore_path: str,model: Optional[SentenceTransformer] = None):
+        self.vectorstore_path = vectorstore_path
+        self.vectorstore = self.load_vectorstore(vectorstore_path)
+        self.embedding_model = model or self.embedding_model()
+
+    def save_vectorstore(self,vectorstore: dict, save_path: str):
+        os.makedirs(save_path, exist_ok=True)
+        meta = {}
+
+        for col, data in vectorstore.items():
+            index_path = os.path.join(save_path, f"{col}.index")
+            faiss.write_index(data["index"], index_path)
+            meta[col] = data["values"]  # Just save values as metadata
+
+        with open(os.path.join(save_path, "metadata.json"), "w") as f:
+            json.dump(meta, f)
+
+    def load_vectorstore(self,save_path: str) -> dict:
+        vectorstore = {}
+        with open(os.path.join(save_path, "metadata.json")) as f:
+            meta = json.load(f)
+
+        for col, values in meta.items():
+            index_path = os.path.join(save_path, f"{col}.index")
+            index = faiss.read_index(index_path)
+            vectorstore[col] = {
+                "index": index,
+                "values": values
+            }
+
+        return vectorstore
+
+    def fetch_unique_column_values(self,session: Session, table_name: str, columns: list[str]) -> dict[str, list[str]]:
+        values_by_column = {}
+        for col in columns:
+            query = text(f"SELECT DISTINCT {col} FROM {table_name} WHERE {col} IS NOT NULL")
+            result = session.execute(query).fetchall()
+            values = [str(row[0]) for row in result]
+            values_by_column[col] = values
+        return values_by_column
+
+    def build_vectorstore(self,values_by_column: dict[str, list[str]], model: SentenceTransformer) -> dict:
+        vectorstore = {}
+        for col, values in values_by_column.items():
+            embeddings = model.encode(values)
+            index = faiss.IndexFlatL2(embeddings.shape[1])
+            index.add(np.array(embeddings))
+            vectorstore[col] = {
+                "index": index,
+                "values": values
+            }
+        return vectorstore
+
 class DatabaseHandler:
     """Handles database interactions."""
 
@@ -46,7 +114,7 @@ class DatabaseHandler:
             print(f"Error al obtener nombres de tablas: {e}")
             return []
 
-    def get_table_schema(self,table_name: str) -> List[dict]:
+    def get_table_schema(self,table_name: str) -> List[str]:
         inspector = inspect(self.engine)
         try:
             # Get the schema of the table
@@ -122,7 +190,23 @@ class Configuration:
         default=DATABASE_URL,
         metadata={"description": "The URL for the SQLite database."}
     )
+    vectorstore_path: str = field(
+        default=VECTORSTORE_PATH,
+        metadata={"description": "The path to the vectorstore."}
+    )
+    embedding_model_name: str = field(
+        default=EMBEDDING_MODEL_NAME,
+        metadata={"description": "The name of the embedding model."}
+    )
+
+    @cached_property
+    def embedding_model(self):
+        return SentenceTransformer(model_name=self.embedding_model_name)
     
+    @cached_property
+    def vectorstore_handler(self):
+        return VectorStoreHandler(self.vectorstore_path, model=self.embedding_model)
+
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)

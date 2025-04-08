@@ -12,11 +12,10 @@ from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 
 from langgraph.graph import END, START, StateGraph
 
-from agent.configuration import Configuration,DatabaseHandler
+from agent.configuration import Configuration,DatabaseHandler,VectorStoreHandler
 from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
-from agent.utils import load_chat_model, execute_sql_query, get_embedding, vectorstore
-from vectorstore.loader import load_vectorstore
-
+from agent.utils import load_chat_model, execute_sql_query, search_in_column
+import numpy as np
 
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
@@ -72,8 +71,8 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
 
-    # Usa DatabaseHandler para obtener el esquema
-    db_handler = DatabaseHandler(configuration.database_url)
+
+    db_handler = configuration.db_handler
     database_schema = db_handler.load_database_schema()
 
     # Formatea el esquema para usarlo en el prompt 
@@ -91,30 +90,50 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     return model_response
 
-async def retrieve_relevant_values(state: State) -> State:
-    query_text = state.original_query  # o donde tengas la query en texto
-    relevant_columns = state.relevant_columns  # columnas detectadas antes
-    
-    # Hacemos embedding de la query
-    query_embedding = get_embedding(query_text)
-    
-    # Buscamos en el vectorstore limitado a esas columnas
-    relevant_values = []
-    for col in relevant_columns:
-        matches = vectorstore[col].search(query_embedding, k=3)  # top-3 valores
-        for match in matches:
-            relevant_values.append(match.metadata["value"])  # ajustá si tu vectorstore lo guarda distinto
+def retrieve_relevant_values(state: State, config: Configuration) -> State:
+    # Extract the latest user query
+    user_messages = [msg for msg in state.messages if isinstance(msg, HumanMessage)]
+    if not user_messages:
+        return state
+    latest_query = user_messages[-1].content
 
-    # Guardamos en el state
-    state.relevant_values = ", ".join(set(relevant_values))  # como string, como pediste
+    # Encode the query
+    query_embedding = config.embedding_model.encode(latest_query)
+    query_embedding = np.array(query_embedding).reshape(1, -1)  # Ensure 2D array
+
+    # Get vector store handler and search parameters
+    vectorstore_handler = config.vectorstore_handler
+    top_k = 3
+
+    relevant_values = []
+    # Iterate through all relevant columns across tables
+    for column in state.relevant_columns:
+    
+        if column in vectorstore_handler.vectorstore:
+            vs_data = vectorstore_handler.vectorstore[column]
+            index = vs_data["index"]
+            values = vs_data["values"]
+            # Perform similarity search
+            _, indices = index.search(query_embedding, top_k)
+            column_values = []
+            # Collect values from valid indices
+            for idx in indices[0]:
+                if 0 <= idx < len(values):
+                    column_values.append(values[idx])
+            relevant_values.append({column:column_values})
+            
+
+    # Deduplicate and update state
+    state.relevant_values = relevant_values if relevant_values else None
     return state
+
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
 
-    db_handler = DatabaseHandler(configuration.database_url)
+    db_handler = configuration.db_handler
     # Prepare schema context for LLM
     schema_context = ["schema_name: " + db_handler.schema_name]
     for table in state.relevant_tables:
@@ -124,12 +143,13 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     prompt = configuration.generate_sql_prompt.format(
         schema_context="\n\n".join(schema_context),
         relevant_columns = state.relevant_columns,
+        relevant_values = state.relevant_values,
         dialect = db_handler.dialect,
         top_k = db_handler.top_k,
     )
 
     messages = [
-        {"role": "system", "content": prompt}
+       [SystemMessage(content=prompt)] + state.messages
     ] + state.messages
     
     
@@ -142,7 +162,7 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
     """Ejecuta una consulta SQL y maneja errores."""
 
     configuration = Configuration.from_runnable_config(config)
-    db_handler = DatabaseHandler(configuration.database_url)
+    db_handler = configuration.db_handler
 
     query_result = execute_sql_query(query=state.sql_query,
                                      schema=db_handler.schema_name, 
@@ -185,7 +205,7 @@ async def respond_to_general_query(state: State, *, config: RunnableConfig) -> S
     system_prompt = configuration.general_system_prompt.format(
         logic=state.router["logic"]
     )
-    messages = [{"role": "system", "content": system_prompt}] + state.messages
+    messages =[SystemMessage(content=system_prompt)] + state.messages + state.messages
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 
@@ -206,7 +226,7 @@ async def ask_for_more_info(state: State, *, config: RunnableConfig) -> State:
     system_prompt = configuration.more_info_system_prompt.format(
         logic=state.router["logic"]
     )
-    messages = [{"role": "system", "content": system_prompt}] + state.messages
+    messages = [SystemMessage(content=system_prompt)] + state.messages
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 
@@ -218,13 +238,15 @@ workflow.add_node("intent_detection", detect_intent)
 workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
 workflow.add_node("extract_relevant_info", extract_relevant_info)
+workflow.add_node("retrieve_relevant_values", retrieve_relevant_values)
 workflow.add_node("sql_generation", generate_sql)
 workflow.add_node("query_execution", get_database_results)
 workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")
 workflow.add_conditional_edges("intent_detection", route_query)
-workflow.add_edge("extract_relevant_info", "sql_generation")
+workflow.add_edge("extract_relevant_info", "retrieve_relevant_values")
+workflow.add_edge("retrieve_relevant_values", "sql_generation")
 workflow.add_edge("sql_generation", "query_execution")
 workflow.add_edge("query_execution", "explanation_generation")
 workflow.add_edge("ask_for_more_info", END)

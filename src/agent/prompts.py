@@ -77,6 +77,9 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 Available tables:
 {schema_context}
 
+Some values per column that might be useful for the query:
+{relevant_values}
+
 Return ONLY the SQL query with no additional explanation or formatting."""
 
 RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema.
