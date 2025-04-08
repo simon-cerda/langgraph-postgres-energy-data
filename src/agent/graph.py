@@ -90,41 +90,11 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     return model_response
 
+#TODO - Work on this Node
 def retrieve_relevant_values(state: State, config: Configuration) -> State:
-    # Extract the latest user query
-    user_messages = [msg for msg in state.messages if isinstance(msg, HumanMessage)]
-    if not user_messages:
-        return state
-    latest_query = user_messages[-1].content
 
-    # Encode the query
-    query_embedding = config.embedding_model.encode(latest_query)
-    query_embedding = np.array(query_embedding).reshape(1, -1)  # Ensure 2D array
+    """Retrieve relevant values from the database based on the user's query."""
 
-    # Get vector store handler and search parameters
-    vectorstore_handler = config.vectorstore_handler
-    top_k = 3
-
-    relevant_values = []
-    # Iterate through all relevant columns across tables
-    for column in state.relevant_columns:
-    
-        if column in vectorstore_handler.vectorstore:
-            vs_data = vectorstore_handler.vectorstore[column]
-            index = vs_data["index"]
-            values = vs_data["values"]
-            # Perform similarity search
-            _, indices = index.search(query_embedding, top_k)
-            column_values = []
-            # Collect values from valid indices
-            for idx in indices[0]:
-                if 0 <= idx < len(values):
-                    column_values.append(values[idx])
-            relevant_values.append({column:column_values})
-            
-
-    # Deduplicate and update state
-    state.relevant_values = relevant_values if relevant_values else None
     return state
 
 

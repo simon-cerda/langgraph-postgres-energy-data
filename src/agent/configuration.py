@@ -201,16 +201,13 @@ class Configuration:
 
     @cached_property
     def embedding_model(self):
-        return SentenceTransformer(model_name=self.embedding_model_name)
+        return SentenceTransformer(self.embedding_model_name)
     
-    @cached_property
-    def vectorstore_handler(self):
-        return VectorStoreHandler(self.vectorstore_path, model=self.embedding_model)
-
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
         self.database_schema = self.db_handler.load_database_schema()
+ 
 
     @classmethod
     def from_runnable_config(
