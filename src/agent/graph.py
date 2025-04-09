@@ -17,6 +17,11 @@ from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOu
 from agent.utils import load_chat_model, execute_sql_query, search_in_column
 import numpy as np
 
+from sentence_transformers import SentenceTransformer
+
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
 
@@ -56,15 +61,15 @@ def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_
     Raises:
         ValueError: If an unknown router type is encountered.
     """
-    _type = state.router["type"]
-    if _type == "database":
-        return "extract_relevant_info"
-    elif _type == "more-info":
-        return "ask_for_more_info"
-    elif _type == "general":
-        return "respond_to_general_query"
-    else:
-        raise ValueError(f"Unknown router type {_type}")
+    ROUTE_MAP = {
+    "database": "extract_relevant_info",
+    "more-info": "ask_for_more_info",
+    "general": "respond_to_general_query"
+    }
+    try:
+        return ROUTE_MAP[state.router["type"]]
+    except KeyError:
+        raise ValueError(f"Unknown router type {state.router['type']}")
 
 async def extract_relevant_info(state: State, *, config: RunnableConfig) -> State:
     """Extract relevant tables and columns from the database schema based on the user query."""
@@ -96,7 +101,9 @@ def retrieve_relevant_values(state: State, config: Configuration) -> State:
     configuration = Configuration.from_runnable_config(config)
     vector_handler = configuration.vectorstore_handler
     relevant_values_dict = {}
+    user_query = state.messages[-1].content
 
+    query_embedding = embedding_model.encode([user_query])
     for table, columns in state.relevant_columns.items():
         for column in columns:
             # Skip if column not in vectorstore
@@ -107,9 +114,8 @@ def retrieve_relevant_values(state: State, config: Configuration) -> State:
             index = vector_handler.vectorstore[column]["index"]
             values = vector_handler.vectorstore[column]["values"]
 
-            # Compute embedding for the column name
-            column_embedding = configuration.embedding_model.encode([column])
-            D, I = index.search(np.array(column_embedding), 3)
+            # Search for relevant values in the column
+            D, I = index.search(np.array(query_embedding), 2)
 
             # Collect top-k relevant values
             top_values = [values[i] for i in I[0]]
@@ -127,9 +133,8 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
 
     db_handler = configuration.db_handler
     # Prepare schema context for LLM
-    schema_context = ["schema_name: " + db_handler.schema_name]
-    for table in state.relevant_tables:
-        schema_context.append(db_handler.get_table_schema(table))
+    schema_context = [f"schema_name: {db_handler.schema_name}"]
+    schema_context += [db_handler.get_table_schema(table) for table in state.relevant_tables]
  
     
     prompt = configuration.generate_sql_prompt.format(

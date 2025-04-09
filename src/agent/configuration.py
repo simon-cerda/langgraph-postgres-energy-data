@@ -33,15 +33,14 @@ if not DB_USER:
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
 
 class VectorStoreHandler:
     """Handles vector store interactions."""
 
-    def __init__(self, vectorstore_path: str,model: Optional[SentenceTransformer] = None):
+    def __init__(self, vectorstore_path: str):
         self.vectorstore_path = vectorstore_path
         self.vectorstore = self.load_vectorstore(vectorstore_path)
-        self.embedding_model = model or self.embedding_model()
 
     def save_vectorstore(self,vectorstore: dict, save_path: str):
         with open(save_path, "wb") as f:
@@ -177,20 +176,13 @@ class Configuration:
         default=VECTORSTORE_PATH,
         metadata={"description": "The path to the vectorstore."}
     )
-    embedding_model_name: str = field(
-        default=EMBEDDING_MODEL_NAME,
-        metadata={"description": "The name of the embedding model."}
-    )
 
-    @cached_property
-    def embedding_model(self):
-        return SentenceTransformer(self.embedding_model_name)
     
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
         self.database_schema = self.db_handler.load_database_schema()
-        self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path, self.embedding_model)
+        self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path)
  
 
     @classmethod
