@@ -15,7 +15,7 @@ Ejemplos:
 
 ## `database`
 Clasifica una consulta como `database` si es una pregunta relacionada con **datos concretos de consumo, eficiencia, edificios, clima, o estructura de la base de datos**, y si tiene la información mínima necesaria para buscar en la base de datos. Estas consultas pueden involucrar comparaciones, totales, filtros o rankings.
-
+Asume que cuentas con informacion de consumo energetico por edificio, por ciudad, por hora, dia semana y mes.
 Ejemplos:
 - “¿Qué edificios tienen la mayor eficiencia energética?”
 - “¿Cuál es el consumo promedio de energía por edificio?”
