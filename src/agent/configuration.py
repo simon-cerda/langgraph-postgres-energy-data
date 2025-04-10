@@ -13,8 +13,12 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import json
-from functools import cached_property
+
 import pickle
+import yaml
+from pathlib import Path
+from typing import Dict
+
 # DATABASE_URL = "sqlite:///energy_consumption.db"
 
 # Load environment variables from .env file
@@ -34,6 +38,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
 
+SCHEMA_PATH = "schema_context.yaml"
 
 class VectorStoreHandler:
     """Handles vector store interactions."""
@@ -72,6 +77,7 @@ class VectorStoreHandler:
                 "values": values
             }
         return vectorstore
+    
 
 class DatabaseHandler:
     """Handles database interactions."""
@@ -113,12 +119,76 @@ class DatabaseHandler:
             return []
 
     def load_database_schema(self) -> dict:
-        """Loads the entire database schema."""
+        """Loads the entire database schema with only table names and column names."""
         table_names = self.get_table_names()
         schema = {}
-        for table_name in table_names:
-            schema[table_name] = self.get_table_schema(table_name)
+        for table in table_names:
+            try:
+                columns = inspect(self.engine).get_columns(table, schema=self.schema_name)
+                schema[table] = [col["name"] for col in columns]
+            except SQLAlchemyError as e:
+                print(f"Error loading schema for {table}: {e}")
         return schema
+    
+    def load_schema_from_yaml(self, file_path: Path) -> None:
+        """Load the entire schema definition from a YAML file."""
+        try:
+            with open(file_path, 'r') as f:
+                self.schema_data = yaml.safe_load(f)
+            self._build_schema_context()
+        except Exception as e:
+            raise ValueError(f"Failed to load schema from YAML: {str(e)}")
+    
+    def _build_schema_context(self) -> None:
+        """ Build the schema context string from loaded schema data."""
+        if not self.schema_data:
+            raise ValueError("No schema data loaded")
+            
+        context_lines = []
+        context_lines.append(f"Schema: {self.schema_data['schema']}")
+        context_lines.append(f"Description: {self.schema_data.get('description', 'No description')}")
+
+        for table in self.schema_data.get('tables', []):
+            context_lines.append(f"\nTable: {table['name']}")
+            context_lines.append(f"Description: {table.get('description', 'No description')}")
+            
+            for column in table.get('columns', []):
+                context_lines.append(f"  Column: {column['name']} - {column.get('description', 'No description')}")
+        self.schema_context = "\n".join(context_lines)
+
+    def get_table_description(self, table_name: str) -> Optional[Dict]:
+        """Get complete description of a table including columns."""
+        if not self.schema_data:
+            return None
+            
+        # Check cache first
+        if table_name in self.loaded_tables:
+            return self.loaded_tables[table_name]
+            
+        # Find in schema data
+        for table in self.schema_data.get('tables', []):
+            if table['name'] == table_name:
+                self.loaded_tables[table_name] = {
+                    "name": table["name"],
+                    "description": table.get("description", ""),
+                    "columns": table.get("columns", [])
+                }
+                return self.loaded_tables[table_name]
+                
+        return None
+    
+    def get_schema_context(self) -> str:
+        """ Get the formatted schema context string."""
+        if not self.schema_context:
+            raise ValueError("Schema context not loaded")
+        return self.schema_context
+
+    def get_all_table_names(self) -> List[str]:
+        """ Get list of all table names in the schema."""
+        if not self.schema_data:
+            return []
+        return [table['name'] for table in self.schema_data.get('tables', [])]
+    
 
 @dataclass(kw_only=True)
 class Configuration:

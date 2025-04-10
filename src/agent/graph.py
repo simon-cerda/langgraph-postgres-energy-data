@@ -81,8 +81,15 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     db_handler = configuration.db_handler
     database_schema = db_handler.load_database_schema()
 
-    # Formatea el esquema para usarlo en el prompt 
-    schema_description = str(database_schema) 
+    lines = []
+    for table, columns in database_schema.items():
+        lines.append(f"Table: {table}")
+        lines.append("Columns:")
+        for col in columns:
+            lines.append(f"  - {col}")
+        lines.append("")  # newline between tables
+
+    schema_description = "\n".join(lines)
 
     prompt = configuration.relevant_info_system_prompt.format(
         schema_description=schema_description

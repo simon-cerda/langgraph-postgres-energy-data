@@ -69,10 +69,11 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 2. Only use tables and columns mentioned below
 3. Never use `SELECT *` - only include relevant columns
 4. Limit results to {top_k} unless explicitly asked for more
-5. Order results meaningfully when appropriate
 6. Include JOINs when needed using primary keys
 7. Use proper quoting for identifiers if needed
 8. Always include the schema name in the query
+
+If the question is asking for a specific entity or name, is almost always regarding building name from building table.
 
 Available tables:
 {schema_context}
@@ -82,12 +83,11 @@ Some values per column that might be useful for the query:
 
 Return ONLY the SQL query with no additional explanation or formatting."""
 
-RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema. Additionaly if the user is asking for speficic entities or groups, you should also extract it.
+RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your task is to analyze the user's query and extract the most relevant tables and columns from the given database schema.
 
 ## **Instructions:**
 - The database schema is provided as context. Carefully review its structure, including table names and column descriptions.
 - The user's query may refer to specific tables, columns, or entities. Identify the most relevant tables and columns based on the query's intent.
-- The user's query may also refer to specific entities or groups. Identify entities and extract them from the query. If the query doesn't refer to any specific entity, return an empty list.
 - If the query is ambiguous, select the most probable tables and columns based on typical database usage patterns.
 - If the query references multiple concepts, return a structured response listing all relevant tables and columns.
 - Do not generate data; your goal is only to extract relevant schema elements.
