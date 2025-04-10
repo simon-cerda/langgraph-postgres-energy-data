@@ -97,7 +97,7 @@ class DatabaseHandler:
     def get_table_names(self) -> List[str]:
         inspector = inspect(self.engine)
         try:
-            return inspector.get_table_names(schema=self.schema_name)
+            return inspector.get_table_names(schema=self.schema_name)+inspector.get_view_names(schema=self.schema_name)
         except SQLAlchemyError as e:
             print(f"Error al obtener nombres de tablas: {e}")
             return []
