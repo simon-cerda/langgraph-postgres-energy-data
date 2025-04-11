@@ -68,7 +68,6 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 1. Create syntactically correct SQL for {dialect}
 2. Only use tables and columns mentioned below
 3. Never use `SELECT *` - only include relevant columns
-4. Limit results to {top_k} unless explicitly asked for more
 6. Include JOINs when needed using primary keys
 7. Use proper quoting for identifiers if needed
 8. Always include the schema name in the query
@@ -91,6 +90,7 @@ RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your
 - If the query is ambiguous, select the most probable tables and columns based on typical database usage patterns.
 - If the query references multiple concepts, return a structured response listing all relevant tables and columns.
 - Do not generate data; your goal is only to extract relevant schema elements.
+- Make sure to exclude columns that are not relevant to answert the user question.
 
 ## **Context:**
 - **Database Schema:** `{schema_description}`
