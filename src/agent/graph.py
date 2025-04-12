@@ -22,6 +22,7 @@ from sentence_transformers import SentenceTransformer
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
+
 async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Router]:
     """Analyze the user's query and determine the appropriate routing.
 
@@ -77,19 +78,20 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     model = load_chat_model(configuration.query_model)
 
+    database_schema = configuration.database_schema
 
-    db_handler = configuration.db_handler
-    database_schema = db_handler.load_database_schema()
+    # lines = []
+    # for table, columns in database_schema.items():
+    #     lines.append(f"Table: {table}")
+    #     lines.append("Columns:")
+    #     for col in columns:
+    #         lines.append(f"  - {col}")
+    #     lines.append("")  # newline between tables
 
-    lines = []
-    for table, columns in database_schema.items():
-        lines.append(f"Table: {table}")
-        lines.append("Columns:")
-        for col in columns:
-            lines.append(f"  - {col}")
-        lines.append("")  # newline between tables
+    # schema_description = "\n".join(lines)
 
-    schema_description = "\n".join(lines)
+    schema_description = database_schema
+
 
     prompt = configuration.relevant_info_system_prompt.format(
         schema_description=schema_description
@@ -128,9 +130,8 @@ def retrieve_relevant_values(state: State, config: Configuration) -> State:
             top_values = [values[i] for i in I[0]]
             relevant_values_dict[column] = top_values
 
-    # Save to state
-    state.relevant_values = relevant_values_dict  # or convert to list if needed
-    return state
+
+    return {"relevant_values": relevant_values_dict}
 
 
 async def generate_sql(state: State, *, config: RunnableConfig) -> State:
@@ -141,7 +142,14 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     db_handler = configuration.db_handler
     # Prepare schema context for LLM
     schema_context = [f"schema_name: {db_handler.schema_name}"]
-    schema_context += [db_handler.get_table_schema(table) for table in state.relevant_tables]
+    for table, columns in state.relevant_columns.items():
+        schema_context.append(f"Table: {table}")
+        schema_context.append("Columns:")
+        for col in columns:
+            schema_context.append(f"  - {col}")
+        schema_context.append("")
+
+    #schema_context += [db_handler.get_table_schema(table) for table in state.relevant_columns]
  
     
     prompt = configuration.generate_sql_prompt.format(
@@ -149,7 +157,6 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
         relevant_columns = state.relevant_columns,
         relevant_values = state.relevant_values,
         dialect = db_handler.dialect,
-        top_k = db_handler.top_k,
     )
 
     messages = [SystemMessage(content=prompt)] + state.messages

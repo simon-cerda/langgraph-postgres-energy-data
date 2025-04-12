@@ -41,7 +41,7 @@ class QueryOutput(BaseModel):
 @dataclass(kw_only=True)
 class State(InputState):
     """Defines the input state for the agent."""
-
+  
     router: Router = Field(default_factory=lambda: Router(type="general", logic=""))
     relevant_tables: List[str] = Field(default_factory=list)
     relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
@@ -50,7 +50,7 @@ class State(InputState):
     relevant_values: Optional[List[str]] = None
 
 
-class RelevantInfoResponse(TypedDict):
+class RelevantInfoResponse(BaseModel):
     """The response to a relevant info query."""
 
     relevant_tables: List[str]

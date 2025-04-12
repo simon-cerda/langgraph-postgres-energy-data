@@ -38,7 +38,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
 
-SCHEMA_PATH = "schema_context.yaml"
+SCHEMA_PATH = "src/agent/schema_context.yaml"
 
 class VectorStoreHandler:
     """Handles vector store interactions."""
@@ -85,7 +85,13 @@ class DatabaseHandler:
     def __init__(self, database_url: str):
      
         try:
-            self.engine = create_engine(database_url)
+            self.engine = create_engine(
+            database_url,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=3600
+        )
             self.dialect = self.engine.dialect.name
             self.top_k = 5  # Default value for top_k
             self.schema_name = DB_SCHEMA
@@ -135,7 +141,7 @@ class DatabaseHandler:
         try:
             with open(file_path, 'r') as f:
                 self.schema_data = yaml.safe_load(f)
-            self._build_schema_context()
+            return self._build_schema_context()
         except Exception as e:
             raise ValueError(f"Failed to load schema from YAML: {str(e)}")
     
@@ -144,17 +150,20 @@ class DatabaseHandler:
         if not self.schema_data:
             raise ValueError("No schema data loaded")
             
-        context_lines = []
-        context_lines.append(f"Schema: {self.schema_data['schema']}")
-        context_lines.append(f"Description: {self.schema_data.get('description', 'No description')}")
+        output_str = f"Schema: {self.schema_data['schema']}\nDescription: {self.schema_data['description']}\n\n"
 
-        for table in self.schema_data.get('tables', []):
-            context_lines.append(f"\nTable: {table['name']}")
-            context_lines.append(f"Description: {table.get('description', 'No description')}")
+        # Iterate through each table and add details to the output string
+        for table in self.schema_data['tables']:
+            output_str += f"Table: {table['name']}\nDescription: {table['description']}\n"
             
             for column in table.get('columns', []):
-                context_lines.append(f"  Column: {column['name']} - {column.get('description', 'No description')}")
-        self.schema_context = "\n".join(context_lines)
+                output_str += f"  Column: {column['name']}\n"
+                output_str += f"    Description: {column['description']}\n"
+            
+            output_str += "\n"
+
+        
+        return output_str
 
     def get_table_description(self, table_name: str) -> Optional[Dict]:
         """Get complete description of a table including columns."""
@@ -194,7 +203,7 @@ class DatabaseHandler:
 class Configuration:
     """The configuration for the agent."""
 
-    my_configurable_param: str = "changeme"
+    
     
     query_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="openai/gpt-4o-mini",
@@ -247,12 +256,14 @@ class Configuration:
         metadata={"description": "The path to the vectorstore."}
     )
 
-    
+  
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
-        self.database_schema = self.db_handler.load_database_schema()
+        self.database_schema = self.db_handler.load_schema_from_yaml(SCHEMA_PATH)
+
         self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path)
+    
  
 
     @classmethod
