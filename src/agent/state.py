@@ -50,7 +50,7 @@ class State(InputState):
     relevant_values: Optional[List[str]] = None
 
 
-class RelevantInfoResponse(BaseModel):
+class RelevantInfoResponse(TypedDict):
     """The response to a relevant info query."""
 
     relevant_tables: List[str]

@@ -261,7 +261,6 @@ class Configuration:
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
         self.database_schema = self.db_handler.load_schema_from_yaml(SCHEMA_PATH)
-
         self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path)
     
  

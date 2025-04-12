@@ -40,9 +40,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     
     model = load_chat_model(configuration.query_model)
     
-    messages = [
-        {"role": "system", "content": configuration.router_system_prompt}
-    ] + state.messages
+    messages = [SystemMessage(content=configuration.router_system_prompt)] + state.messages
     
     response = cast(
         Router, await model.with_structured_output(Router).ainvoke(messages)
@@ -80,16 +78,6 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     database_schema = configuration.database_schema
 
-    # lines = []
-    # for table, columns in database_schema.items():
-    #     lines.append(f"Table: {table}")
-    #     lines.append("Columns:")
-    #     for col in columns:
-    #         lines.append(f"  - {col}")
-    #     lines.append("")  # newline between tables
-
-    # schema_description = "\n".join(lines)
-
     schema_description = database_schema
 
 
@@ -97,13 +85,12 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
         schema_description=schema_description
     )
 
-    messages = [
-        {"role": "system", "content": prompt}
-    ] + state.messages
+    messages = [SystemMessage(content=prompt)] + state.messages
 
     model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
     return model_response
+
 
 def retrieve_relevant_values(state: State, config: Configuration) -> State:
     """Retrieve relevant values from the database based on the user's query."""
@@ -141,19 +128,25 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
 
     db_handler = configuration.db_handler
     # Prepare schema context for LLM
-    schema_context = [f"schema_name: {db_handler.schema_name}"]
-    for table, columns in state.relevant_columns.items():
-        schema_context.append(f"Table: {table}")
-        schema_context.append("Columns:")
-        for col in columns:
-            schema_context.append(f"  - {col}")
-        schema_context.append("")
+    output_lines = []
 
-    #schema_context += [db_handler.get_table_schema(table) for table in state.relevant_columns]
- 
-    
+    for table in configuration.db_handler.schema_data.get('tables', []):
+        table_name = table.get('name')
+        if table_name in state.relevant_columns:
+            output_lines.append(f"\nTable: {table_name}")
+            output_lines.append("Columns:")
+
+            # Map column names to definitions
+            column_defs = {col['name']: col for col in table.get('columns', [])}
+            requested_columns = state.relevant_columns[table_name]
+
+            for col in requested_columns:
+                col_def = column_defs.get(col)
+                if col_def:
+                    output_lines.append(f"  - {col_def['name']}: {col_def['type']}")
+
     prompt = configuration.generate_sql_prompt.format(
-        schema_context="\n\n".join(schema_context),
+        schema_context="\n".join(output_lines),
         relevant_columns = state.relevant_columns,
         relevant_values = state.relevant_values,
         dialect = db_handler.dialect,
