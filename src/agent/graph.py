@@ -4,17 +4,14 @@ This module contains the workflow for the agent, including the nodes and edges o
 
 
 from typing import cast, Literal
-from typing_extensions import Annotated
-from typing_extensions import TypedDict
-
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
+from langchain_core.messages import SystemMessage
 
 from langgraph.graph import END, START, StateGraph
 
-from agent.configuration import Configuration,DatabaseHandler,VectorStoreHandler
+from agent.configuration import Configuration
 from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
-from agent.utils import load_chat_model, execute_sql_query, search_in_column
+from agent.utils import load_chat_model, execute_sql_query
 import numpy as np
 
 from sentence_transformers import SentenceTransformer
@@ -40,7 +37,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     
     model = load_chat_model(configuration.query_model)
     
-    messages = [SystemMessage(content=configuration.router_system_prompt)] + state.messages
+    messages = [SystemMessage(content=configuration.router_system_prompt)] + state.recent_messages
     
     response = cast(
         Router, await model.with_structured_output(Router).ainvoke(messages)
@@ -78,21 +75,18 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
     database_schema = configuration.database_schema
 
-    schema_description = database_schema
-
-
     prompt = configuration.relevant_info_system_prompt.format(
-        schema_description=schema_description
+        schema_description=database_schema
     )
 
-    messages = [SystemMessage(content=prompt)] + state.messages
+    messages = [SystemMessage(content=prompt)] + state.recent_messages
 
     model_response = cast(RelevantInfoResponse, await model.with_structured_output(RelevantInfoResponse).ainvoke(messages))
 
-    return model_response
+    return {"relevant_tables": model_response["relevant_tables"],"relevant_columns": model_response["relevant_columns"]}
 
 
-def retrieve_relevant_values(state: State, config: Configuration) -> State:
+def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     """Retrieve relevant values from the database based on the user's query."""
     configuration = Configuration.from_runnable_config(config)
     vector_handler = configuration.vectorstore_handler
@@ -128,9 +122,9 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
 
     db_handler = configuration.db_handler
     # Prepare schema context for LLM
-    output_lines = []
+    output_lines = ["Schema Name: "+db_handler.schema_name]
 
-    for table in configuration.db_handler.schema_data.get('tables', []):
+    for table in db_handler.schema_data.get('tables', []):
         table_name = table.get('name')
         if table_name in state.relevant_columns:
             output_lines.append(f"\nTable: {table_name}")
@@ -152,7 +146,7 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
         dialect = db_handler.dialect,
     )
 
-    messages = [SystemMessage(content=prompt)] + state.messages
+    messages = [SystemMessage(content=prompt)] + state.recent_messages
     
     
     response = await model.ainvoke(messages)
@@ -179,13 +173,14 @@ async def generate_explanation(state: State,config:RunnableConfig) -> State:
     configuration = Configuration.from_runnable_config(config)
     
     prompt = configuration.explain_results_prompt.format(
-        messages="\n\n".join([message.content for message in state.messages]), 
+        messages="\n\n".join([message.content for message in state.recent_messages]), 
         sql_results=state.query_result)
 
     model = load_chat_model(configuration.query_model)
 
     response = await model.ainvoke(prompt)
-    
+
+
     return {"messages": [response]}
 
 
@@ -207,7 +202,7 @@ async def respond_to_general_query(state: State, *, config: RunnableConfig) -> S
     system_prompt = configuration.general_system_prompt.format(
         logic=state.router["logic"]
     )
-    messages =[SystemMessage(content=system_prompt)] + state.messages
+    messages =[SystemMessage(content=system_prompt)] + state.recent_messages
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 
@@ -228,7 +223,7 @@ async def ask_for_more_info(state: State, *, config: RunnableConfig) -> State:
     system_prompt = configuration.more_info_system_prompt.format(
         logic=state.router["logic"]
     )
-    messages = [SystemMessage(content=system_prompt)] + state.messages
+    messages = [SystemMessage(content=system_prompt)] + state.recent_messages
     response = await model.ainvoke(messages)
     return {"messages": [response]}
 

@@ -49,6 +49,10 @@ class State(InputState):
     query_result: Optional[str] = None
     relevant_values: Optional[List[str]] = None
 
+    @property
+    def recent_messages(self, n=3):
+        return self.messages[-n:]
+
 
 class RelevantInfoResponse(TypedDict):
     """The response to a relevant info query."""

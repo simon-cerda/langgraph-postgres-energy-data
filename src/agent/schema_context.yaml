@@ -1,7 +1,7 @@
-schema: smart_building
+schema: public
 description: "Contains energy consumption data for smart buildings"
 tables:
-  - name: building
+  - name: buildings
     description: "Stores information about physical buildings, useful to query by name or other building attributes"
     columns:
       - name: id
