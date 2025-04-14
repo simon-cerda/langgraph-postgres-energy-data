@@ -27,7 +27,7 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     else:
         provider = ""
         model = fully_specified_name
-    return init_chat_model(model, model_provider=provider)
+    return init_chat_model(model, model_provider=provider,temperature=0.7)
 
 
 def execute_sql_query(query:str,schema,engine):

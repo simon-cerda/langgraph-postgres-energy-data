@@ -71,7 +71,7 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert generating queries for a {dialec
 6. Include JOINs when needed using primary keys
 7. Use proper quoting for identifiers if needed
 8. Always include the schema name in the query
-
+ASSUME Current Date is 2025-03-27
 If the question is asking for a specific entity or name, is almost always regarding building name from building table.
 
 Available tables:
@@ -90,6 +90,7 @@ RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your
 - If the query is ambiguous, select the most probable tables and columns based on typical database usage patterns.
 - If the query references multiple concepts, return a structured response listing all relevant tables and columns.
 - Do not generate data; your goal is only to extract relevant schema elements.
+I need two objects, one list with the relevant tables names and a dictionary with the table as key key and relevant column names as values.
 
 ## **Context:**
 - **Database Schema:** `{schema_description}`
@@ -97,9 +98,12 @@ RELEVANT_INFO_SYSTEM_PROMPT = """You are an intelligent database assistant. Your
 """
 
 EXPLAIN_RESULTS_PROMPT ="""Responde a la pregunta del usuario usando los resultados de la consulta SQL.
+Si el usuario no definió un formato de respuesta, entrega un resumen breve y claro de los resultados, sin entrar en detalles técnicos.
 
 Mensajes: 
 {messages}
+SQL:
+{sql}
 Resultados SQL:
 {sql_results}
 """

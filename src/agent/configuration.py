@@ -82,7 +82,7 @@ class VectorStoreHandler:
 class DatabaseHandler:
     """Handles database interactions."""
 
-    def __init__(self, database_url: str):
+    def __init__(self, database_url: str = DATABASE_URL):
      
         try:
             self.engine = create_engine(
@@ -197,6 +197,23 @@ class DatabaseHandler:
         if not self.schema_data:
             return []
         return [table['name'] for table in self.schema_data.get('tables', [])]
+    
+    def get_column_values(self, table_name: str, column_name: str) -> List[str]:
+        """ Get distinct values for a specific column in a table."""
+        session = Session(self.engine)
+        try:
+            query = text(f"SELECT DISTINCT {column_name} FROM {table_name} WHERE {column_name} IS NOT NULL")
+            result = session.execute(query).fetchall()
+      
+        except SQLAlchemyError as e:
+            print(f"Error al obtener valores de la columna {column_name} de la tabla {table_name}: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return []
+        finally:
+            session.close()
+            return [str(row[0]) for row in result]
     
 
 @dataclass(kw_only=True)

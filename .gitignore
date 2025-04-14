@@ -176,4 +176,6 @@ cython_debug/
 # Pickle files
 *.pickle
 *.pkl
+*.pckl
 src/agent/schema_context.yaml
+

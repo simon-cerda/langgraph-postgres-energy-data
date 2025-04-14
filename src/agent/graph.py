@@ -173,7 +173,8 @@ async def generate_explanation(state: State,config:RunnableConfig) -> State:
     configuration = Configuration.from_runnable_config(config)
     
     prompt = configuration.explain_results_prompt.format(
-        messages="\n\n".join([message.content for message in state.recent_messages]), 
+        messages="\n\n".join([message.content for message in state.recent_messages]),
+        sql = state.sql_query,
         sql_results=state.query_result)
 
     model = load_chat_model(configuration.query_model)
