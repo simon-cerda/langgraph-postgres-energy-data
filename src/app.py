@@ -74,7 +74,7 @@ with st.sidebar:
 
 # Conversación principal
 if "history" not in st.session_state:
-    st.session_state.history: list[BaseMessage] = []
+    st.session_state.history = []
 
 user_input = st.chat_input("Say something...")
 
