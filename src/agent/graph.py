@@ -17,6 +17,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+DATE = "2025-03-27"  # Current date for SQL queries
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
@@ -45,20 +46,20 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     return {"router": {"type":response.type, "logic":response.logic}}
 
 
-def route_query(state: State) -> Literal["extract_relevant_info", "ask_for_more_info", "respond_to_general_query"]:
+def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query"]:
     """Determine the next step based on the query classification.
 
     Args:
         state (State): The current state of the agent, including the router's classification.
 
     Returns:
-        Literal["extract_relevant_info", "ask_for_more_info", "respond_to_general_query"]: The next step to take.
+        Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query"]: The next step to take.
 
     Raises:
         ValueError: If an unknown router type is encountered.
     """
     ROUTE_MAP = {
-    "database": "extract_relevant_info",
+    "database": "retrieve_relevant_values",
     "more-info": "ask_for_more_info",
     "general": "respond_to_general_query"
     }
@@ -94,22 +95,22 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     user_query = state.messages[-1].content
 
     query_embedding = embedding_model.encode([user_query])
-    for table, columns in state.relevant_columns.items():
-        for column in columns:
-            # Skip if column not in vectorstore
-            if column not in vector_handler.vectorstore:
-                continue
+    
+    for column in ["name","type"]:
+        # Skip if column not in vectorstore
+        if column not in vector_handler.vectorstore:
+            continue
 
-            # Get index and values
-            index = vector_handler.vectorstore[column]["index"]
-            values = vector_handler.vectorstore[column]["values"]
+        # Get index and values
+        index = vector_handler.vectorstore[column]["index"]
+        values = vector_handler.vectorstore[column]["values"]
 
-            # Search for relevant values in the column
-            D, I = index.search(np.array(query_embedding), 2)
+        # Search for relevant values in the column
+        D, I = index.search(np.array(query_embedding), 2)
 
-            # Collect top-k relevant values
-            top_values = [values[i] for i in I[0]]
-            relevant_values_dict[column] = top_values
+        # Collect top-k relevant values
+        top_values = [values[i] for i in I[0]]
+        relevant_values_dict[column] = top_values
 
 
     return {"relevant_values": relevant_values_dict}
@@ -119,31 +120,14 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
-
-    db_handler = configuration.db_handler
-    # Prepare schema context for LLM
-    output_lines = ["Schema Name: "+db_handler.schema_name]
-
-    for table in db_handler.schema_data.get('tables', []):
-        table_name = table.get('name')
-        if table_name in state.relevant_columns:
-            output_lines.append(f"\nTable: {table_name}")
-            output_lines.append("Columns:")
-
-            # Map column names to definitions
-            column_defs = {col['name']: col for col in table.get('columns', [])}
-            requested_columns = state.relevant_columns[table_name]
-
-            for col in requested_columns:
-                col_def = column_defs.get(col)
-                if col_def:
-                    output_lines.append(f"  - {col_def['name']}: {col_def['type']}")
+    database_handler = configuration.db_handler
+    database_schema = configuration.database_schema
 
     prompt = configuration.generate_sql_prompt.format(
-        schema_context="\n".join(output_lines),
-        relevant_columns = state.relevant_columns,
+        schema_context=database_schema,
         relevant_values = state.relevant_values,
-        dialect = db_handler.dialect,
+        dialect = database_handler.dialect,
+        date =DATE,
     )
 
     messages = [SystemMessage(content=prompt)] + state.recent_messages
@@ -243,7 +227,7 @@ workflow.add_node("explanation_generation", generate_explanation)
 
 workflow.add_edge(START, "intent_detection")
 workflow.add_conditional_edges("intent_detection", route_query)
-workflow.add_edge("extract_relevant_info", "retrieve_relevant_values")
+# workflow.add_edge("extract_relevant_info", "retrieve_relevant_values")
 workflow.add_edge("retrieve_relevant_values", "sql_generation")
 workflow.add_edge("sql_generation", "query_execution")
 workflow.add_edge("query_execution", "explanation_generation")

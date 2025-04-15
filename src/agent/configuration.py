@@ -150,16 +150,17 @@ class DatabaseHandler:
         if not self.schema_data:
             raise ValueError("No schema data loaded")
             
-        output_str = f"Schema: {self.schema_data['schema']}\nDescription: {self.schema_data['description']}\n\n"
+        output_str = f"Schema: {self.schema_data['schema']}\n\n"
 
-        # Iterate through each table and add details to the output string
-        for table in self.schema_data['tables']:
-            output_str += f"Table: {table['name']}\nDescription: {table['description']}\n"
-            
+        for table in self.schema_data.get('tables', []):
+            output_str += f"Table: {table['name']}\n"
+            output_str += f"   Description: {table['description']}\n"
+
             for column in table.get('columns', []):
-                output_str += f"  Column: {column['name']}\n"
-                output_str += f"    Description: {column['description']}\n"
-            
+                output_str += f"     • Column: {column['name']}\n"
+                output_str += f"       - Type: {column['type']}\n"
+                output_str += f"       - Description: {column['description']}\n"
+
             output_str += "\n"
 
         
