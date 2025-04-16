@@ -139,7 +139,7 @@ class DatabaseHandler:
     def load_schema_from_yaml(self, file_path: Path) -> None:
         """Load the entire schema definition from a YAML file."""
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding="utf-8") as f:
                 self.schema_data = yaml.safe_load(f)
             return self._build_schema_context()
         except Exception as e:

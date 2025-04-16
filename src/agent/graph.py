@@ -17,7 +17,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-DATE = "2025-03-27"  # Current date for SQL queries
+DATE = "2025-03-23"  # Current date for SQL queries
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
