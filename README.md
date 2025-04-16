@@ -31,7 +31,7 @@ git clone https://github.com/tuusuario/langgraph-postgres-energy-data.git
 cd langgraph-postgres-energy-data
 python -m venv venv
 source venv/bin/activate  # En Windows usa `venv\Scripts\activate`
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## 🏗️ Uso
