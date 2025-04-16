@@ -104,13 +104,15 @@ Return two objects:
 
 """
 
-EXPLAIN_RESULTS_PROMPT ="""Responde a la pregunta del usuario usando los resultados de la consulta SQL.
+EXPLAIN_RESULTS_PROMPT ="""Mensajes: 
+{messages}
+
+Responde a la pregunta del usuario usando los resultados de la consulta SQL.
 Si el usuario no definió un formato de respuesta, entrega un resumen breve y claro de los resultados, sin entrar en detalles técnicos.
 
-Mensajes: 
-{messages}
 SQL:
 {sql}
+
 Resultados SQL:
 {sql_results}
 """
