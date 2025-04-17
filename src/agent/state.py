@@ -29,7 +29,7 @@ class InputState:
 class Router(BaseModel):
     """Classify user query."""
     logic: str
-    type: Literal["more-info", "database", "general"]
+    type: Literal["more-info", "building-detail","building-search", "general"]
 
 
 class QueryOutput(BaseModel):
@@ -46,6 +46,7 @@ class State(InputState):
     relevant_tables: List[str] = Field(default_factory=list)
     relevant_columns: Dict[str, List[str]] = Field(default_factory=dict)
     sql_query: Optional[str] = None
+    #is_sql_valid: Optional[bool] = None
     query_result: Optional[str] = None
     relevant_values: Optional[List[str]] = None
 

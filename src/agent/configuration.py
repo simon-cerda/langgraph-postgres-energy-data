@@ -39,7 +39,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
 
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "openai/gpt-4.1-nano"
+MODEL_NAME = "openai/gpt-4.1-mini"
 
 class VectorStoreHandler:
     """Handles vector store interactions."""

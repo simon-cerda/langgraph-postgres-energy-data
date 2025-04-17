@@ -5,27 +5,35 @@ ROUTER_SYSTEM_PROMPT = """Eres un experto en análisis de datos. Tu trabajo es a
 Un usuario te hará una consulta. Tu primera tarea es clasificar el tipo de consulta. Los tipos de consultas que debes clasificar son:
 
 ## `more-info`
-Clasifica una consulta como `more-info` si **no tiene la información mínima necesaria para buscar una respuesta en los datos**, como por ejemplo: no indica un edificio, período, variable o criterio relevante. No se trata de si puedes responderla directamente, sino de si la consulta **es suficientemente específica para ejecutar una búsqueda de datos**.
+Clasifica una consulta como `more-info` si **no tiene la información mínima necesaria para buscar una respuesta en los datos**, como por ejemplo: no indica un edificio, variable o criterio relevante. No se trata de si puedes responderla directamente, sino de si la consulta **es suficientemente específica para ejecutar una búsqueda de datos**.
 
 Ejemplos:
-- “¿Cuál es el consumo del edificio?” (no especifica cuál edificio ni el período).
+- “¿Cuál es el consumo del edificio?” (no especifica cuál edificio).
 - “Dame información sobre eficiencia energética.” (muy general).
 - “Quiero datos de consumo.” (no está claro qué tipo de datos o rango de fechas).
 
 
-## `database`
-Clasifica una consulta como `database` si es una pregunta relacionada con **datos concretos de consumo, eficiencia, edificios, clima, o estructura de la base de datos**, y si tiene la información mínima necesaria para buscar en la base de datos. Estas consultas pueden involucrar comparaciones, totales, filtros o rankings.
-Asume que cuentas con informacion de consumo energetico por edificio, por ciudad, por hora, dia semana y mes. Ademas cuentas con consumo del último mes y el mes anterior de cada edificio.
+## `building-details`
+Clasifica una consulta como `building-details` si se trata de una pregunta relacionada con **datos concretos de un edificio específico**. Esto incluye consumo, eficiencia energética, clima, comparaciones en el tiempo, etc., **siempre que se mencione un edificio en particular por nombre o identificador**.
+
+Ejemplos:
+- “¿Cuál fue el consumo de energía del edificio Torres Norte el mes pasado?”
+- “Dame el resumen energético del edificio Central Park.”
+- “¿Cómo ha variado el consumo del edificio Plaza Sur en los últimos tres meses?”
+
+
+## `building-search`
+Clasifica una consulta como `building-search` si es una pregunta que **no menciona un edificio específico**, pero sí busca información de consumo, eficiencia o rankings entre varios edificios, ciudades o grupos de edificios. Implica búsquedas, filtros, totales o comparaciones generales.
+
 Ejemplos:
 - “¿Qué edificios tienen la mayor eficiencia energética?”
 - “¿Cuál es el consumo promedio de energía por edificio?”
-- “¿Cuántos edificios hay en mi base de datos?”
-
+- “¿Cuáles son los edificios con mayor consumo este mes en Madrid?”
+- “¿Qué ciudad tiene el mayor número de edificios con bajo consumo?”
 
 
 ## `general`
 Clasifica una consulta como `general` si se trata de una afirmación, comentario o pregunta sin intención clara de obtener datos específicos.
-
 """
 
 
@@ -72,11 +80,10 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert tasked with generating queries f
 5. Use proper identifier quoting based on the `{dialect}` syntax.
 6. Always include the schema name when referencing tables.  
 7. Do **not** make assumptions or use any data that is not present in the table definitions.  
-8. When the question refers to a specific entity or name, assume it refers to a building name.  
-9. When the question asks for last month or previous month metrics, use the `building_energy_consumption_metrics` table.  
-10. If the question refers to summarized, comparative, or metric-based values (e.g., weekly/monthly consumption, percentage differences, min/max), use the `building_energy_consumption_metrics` table. Only use the `energy_consumption` table if the question requires detailed hourly, daily or raw time-series data.  
-11. Only use values from the list below **if they are clearly relevant to the user’s question**. If they are not relevant, ignore them.
-
+8. When the question refers to a specific entity or name, assume it refers to a building name. 
+9. The building_energy_consumption_metrics table only contains aggregates for the last two months. If the request refers to more than two months, you must use the energy_consumption table and compute the required monthly aggregates using date_trunc. 
+10. Only use values from the list below **if they are clearly relevant to the user’s question**. If they are not relevant, ignore them.
+Si el usuario hace una consulta de un edificio sin especificar periodo genera una consulta con todas las metricas del último mes.
 Available tables:  
 {schema_context}
 
@@ -107,7 +114,7 @@ Return two objects:
 EXPLAIN_RESULTS_PROMPT ="""Mensajes: 
 {messages}
 
-Responde a la pregunta del usuario usando los resultados de la consulta SQL.
+Responde a la pregunta del usuario usando los resultados de la consulta SQL. Siempre que sea relevante utiliza el nombre del edificio como aparecen en la base de datos.
 Si el usuario no definió un formato de respuesta, entrega un resumen breve y claro de los resultados, sin entrar en detalles técnicos.
 
 SQL:

@@ -1,9 +1,9 @@
 [project]
 name = "agent"
-version = "0.0.1"
-description = "Starter template for making a new agent LangGraph."
+version = "0.0.2"
+description = "Langgraph SQL Workflow"
 authors = [
-    { name = "William Fu-Hinthorn", email = "13333726+hinthornw@users.noreply.github.com" },
+    { name = "Simon Cerda" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -15,7 +15,8 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "langchain>=0.3.21",
     "sentence-transformers",
-    "faiss-cpu"
+    "faiss-cpu",
+    "streamlit"
     
 ]
 

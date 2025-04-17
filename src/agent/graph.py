@@ -13,7 +13,7 @@ from agent.configuration import Configuration
 from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
 from agent.utils import load_chat_model, execute_sql_query
 import numpy as np
-
+import sqlparse
 from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
@@ -46,7 +46,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     return {"router": {"type":response.type, "logic":response.logic}}
 
 
-def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query"]:
+def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query","sql_generation"]:
     """Determine the next step based on the query classification.
 
     Args:
@@ -59,7 +59,8 @@ def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_mo
         ValueError: If an unknown router type is encountered.
     """
     ROUTE_MAP = {
-    "database": "retrieve_relevant_values",
+    "building-detail": "retrieve_relevant_values",
+    "building-search": "sql_generation",
     "more-info": "ask_for_more_info",
     "general": "respond_to_general_query"
     }
@@ -116,7 +117,7 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     return {"relevant_values": relevant_values_dict}
 
 
-async def generate_sql(state: State, *, config: RunnableConfig) -> State:
+async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
@@ -137,7 +138,17 @@ async def generate_sql(state: State, *, config: RunnableConfig) -> State:
     
     return {"sql_query":response.query.strip()}
 
-#TODO - Add validation for SQL query
+
+
+async def validate_sql_query(state: State) -> State:
+    sql_query = state.sql_query
+    try:
+        sqlparse.parse(sql_query)
+        return {"is_sql_valid": True}
+    except Exception as e:
+        print(f"Error de validación SQL: {e}")
+        return {"is_sql_valid": False, "sql_validation_error": str(e)}
+    
 async def get_database_results(state: State, *, config: RunnableConfig) -> State:
     """Ejecuta una consulta SQL y maneja errores."""
 
@@ -157,11 +168,12 @@ async def generate_explanation(state: State,config:RunnableConfig) -> State:
     configuration = Configuration.from_runnable_config(config)
     
     prompt = configuration.explain_results_prompt.format(
-        messages="\n\n".join([message.content for message in state.recent_messages]),
+        messages=state.recent_messages,
         sql = state.sql_query,
         sql_results=state.query_result)
 
     model = load_chat_model(configuration.query_model)
+
 
     response = await model.ainvoke(prompt)
 
@@ -219,9 +231,10 @@ workflow = StateGraph(State,input=InputState, config_schema=Configuration)
 workflow.add_node("intent_detection", detect_intent)
 workflow.add_node(ask_for_more_info)
 workflow.add_node(respond_to_general_query)
-workflow.add_node("extract_relevant_info", extract_relevant_info)
+#workflow.add_node("extract_relevant_info", extract_relevant_info)
 workflow.add_node("retrieve_relevant_values", retrieve_relevant_values)
-workflow.add_node("sql_generation", generate_sql)
+workflow.add_node("sql_generation", sql_generation)
+#workflow.add_node("sql_validation", validate_sql_query)
 workflow.add_node("query_execution", get_database_results)
 workflow.add_node("explanation_generation", generate_explanation)
 
