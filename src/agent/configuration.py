@@ -255,7 +255,7 @@ class Configuration:
         },
     )
     generate_sql_prompt: str = field(
-        default=prompts.GENERATE_SQL_PROMPT_V2,
+        default=prompts.GENERATE_SQL_PROMPT_V3,
         metadata={
             "description": "The system prompt used for generating SQL queries."
         },

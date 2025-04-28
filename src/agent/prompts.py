@@ -83,7 +83,7 @@ GENERATE_SQL_PROMPT_V2 ="""You are a SQL expert tasked with generating queries f
 8. When the question refers to a specific entity or name, assume it refers to a building name. 
 9. The building_energy_consumption_metrics table only contains aggregates for the last two months. If the request refers to more than two months, you must use the energy_consumption table and compute the required monthly aggregates using date_trunc. 
 10. Only use values from the list below **if they are clearly relevant to the user’s question**. If they are not relevant, ignore them.
-Si el usuario hace una consulta de un edificio sin especificar periodo genera una consulta con todas las metricas del último mes.
+If the user makes a query for a building without specifying a period, generate a query with all the metrics of the current month.
 Available tables:  
 {schema_context}
 
@@ -91,6 +91,36 @@ Some example values per column that might be useful for the query:
 {relevant_values}
 
 Return ONLY the SQL query with no additional explanation or formatting."""
+
+GENERATE_SQL_PROMPT_V3 = """
+You are a SQL expert tasked with generating queries for a `{dialect}` database.
+Follow these strict guidelines:
+
+1. Write syntactically correct SQL for the `{dialect}` dialect.  
+2. Use **only** the tables and columns provided below.  
+3. Do **not** use `SELECT *`; always specify only the relevant columns.  
+4. Include `JOIN`s when necessary, using primary keys appropriately.  
+5. Use proper identifier quoting based on the `{dialect}` syntax.  
+6. Always prefix every table with its schema name.  
+7. Do **not** make assumptions or use any data that is not present in the table definitions.  
+8. If the question mentions an entity or name, assume it refers to a building name.  
+9. Preferred sources, depending on the requested granularity and time span:  
+   • Monthly data ­→ use **smart_buildings.energy_consumption_monthly_metrics**.  
+   • Weekly data ­→ use **smart_buildings.energy_consumption_weekly_metrics**. 
+10. If the user makes a query for a building without specifying a period, generate a query with all the metrics of the current month.
+Available tables:   
+11. Only use the example values listed below **if they are clearly relevant** to the user’s question; otherwise ignore them.  
+
+CURRENT MONTH: '2025-04-01'
+CURRENT WEEK: '2025-94-21' to '2023-10-27'
+
+{schema_context}
+
+Some example values per column that might be useful for the query:  
+{relevant_values}
+
+Return **only** the SQL query—no additional explanation or formatting.
+"""
 
 RELEVANT_INFO_SYSTEM_PROMPT = """You are a smart database assistant. Analyze the user's query and extract the most relevant tables and columns from the provided database schema.
 
