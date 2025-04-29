@@ -42,7 +42,7 @@ tables:
         type: double
         description: Desviación estándar del consumo diario en el mes; útil para detectar irregularidades o picos.
       - name: ytd_consumption_kwh
-      - type: numeric
+        type: numeric
         description: Consumo total (kWh) acumulado desde el 1 de enero del año en curso hasta el mes actual, inclusive, para cada CUPS.
       - name: ytd_prev_year_consumption_kwh
         type: numeric
@@ -50,13 +50,6 @@ tables:
       - name: total_consumption_prev_year_same_month_kwh
         type: numeric
         description: Consumo total (kWh) registrado en el mismo mes del año anterior (mes – 12) para cada CUPS.
-
-
-
-
-
-
-
       - name: date_insert
         type: timestamp
         description: Timestamp de carga en el mart; útil para auditoría y trazabilidad.
