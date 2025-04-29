@@ -1,0 +1,77 @@
+schema: smart_buildings
+description: "Contains energy consumption data for smart buildings"
+tables:
+  - name: building
+    description: Información de edificios; útil para identificar y categorizar los edificios.
+    columns:
+      - name: cups
+        type: string
+        description: Código Universal del Punto de Suministro; clave única para cada edificio.
+      - name: name
+        type: string
+        description: Nombre del edificio; útil para identificación y presentación.
+      - name: address
+        type: string
+        description: Dirección del edificio; útil para geolocalización y logística.
+      - name: type
+        type: string
+        description: Tipo de edificio (Administración, Comercial, etc.); útil para segmentación y análisis.
+
+  - name: energy_consumption_monthly_metrics          # schema smart_buildings
+    description: Métricas de consumo eléctrico agregadas por mes civil (yyyy-MM-01).
+    columns:
+      - name: cups
+        type: string
+        description: Código Universal del Punto de Suministro; útil para filtrar o agrupar por instalación.
+      - name: year_month
+        type: date        # primer día del mes
+        description: Fecha que identifica el mes; clave temporal para unir o filtrar por período.
+      - name: total_consumption_kwh
+        type: double
+        description: Consumo total del mes en kWh; base para facturación o KPIs de energía bruta.
+      - name: daily_consumption_kwh
+        type: double
+        description: Consumo medio diario del mes; útil para comparar edificios de distinto tamaño o meses con diferente nº de días.
+      - name: total_consumption_prev_month_kwh
+        type: double
+        description: Consumo total del mes anterior con la misma ventana de días; útil para comparar con el período previo.
+      - name: diff_pct_consumption_prev_month
+        type: double
+        description: Variación porcentual frente al mes anterior; útil para detectar incrementos o reducciones significativas.
+      - name: std_daily_consumption_kwh
+        type: double
+        description: Desviación estándar del consumo diario en el mes; útil para detectar irregularidades o picos.
+      - name: date_insert
+        type: timestamp
+        description: Timestamp de carga en el mart; útil para auditoría y trazabilidad.
+
+  - name: energy_consumption_weekly_metrics           # schema smart_buildings
+    description: Métricas de consumo eléctrico agregadas por semana ISO (lunes-domingo).
+    columns:
+      - name: cups
+        type: string
+        description: Código Universal del Punto de Suministro; útil para filtrar o agrupar por instalación.
+      - name: week_start
+        type: date        # lunes que inicia la semana
+        description: Fecha del lunes de la semana ISO; clave temporal para análisis semanales.
+      - name: total_consumption_kwh
+        type: double
+        description: Consumo total de la semana en kWh; base para reportes de corto plazo.
+      - name: daily_consumption_kwh
+        type: double
+        description: Consumo medio diario de la semana; útil para comparar semanas con base homogénea.
+      - name: total_consumption_prev_week_kwh
+        type: double
+        description: Consumo total de la semana anterior usando la misma cobertura; útil cuando se solicita consumo de la semana pasada o para comparaciones intersemanales.
+      - name: diff_pct_consumption_prev_week
+        type: double
+        description: Variación porcentual frente a la semana anterior; útil para monitorizar cambios rápidos y alertas.
+      - name: std_daily_consumption_kwh
+        type: double
+        description: Desviación estándar del consumo diario en la semana; útil para identificar picos atípicos o patrones irregulares.
+      - name: date_insert
+        type: timestamp
+        description: Timestamp de carga en el mart; útil para auditoría y trazabilidad.
+
+  
+   

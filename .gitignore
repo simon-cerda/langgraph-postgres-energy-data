@@ -177,5 +177,4 @@ cython_debug/
 *.pickle
 *.pkl
 *.pckl
-src/agent/schema_context.yaml
 
