@@ -111,8 +111,7 @@ Follow these strict guidelines:
 Available tables:   
 11. Only use the example values listed below **if they are clearly relevant** to the user’s question; otherwise ignore them.  
 
-CURRENT MONTH: '2025-04-01'
-CURRENT WEEK: '2025-94-21' to '2023-10-27'
+CURRENT DATE: {date}
 
 {schema_context}
 

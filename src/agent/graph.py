@@ -15,9 +15,9 @@ from agent.utils import load_chat_model, execute_sql_query
 import numpy as np
 import sqlparse
 from sentence_transformers import SentenceTransformer
-
+import datetime
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-DATE = "2025-03-23"  # Current date for SQL queries
+DATE = datetime.datetime.today().strftime("%Y-%m-%d")
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
