@@ -29,7 +29,7 @@ class InputState:
 class Router(BaseModel):
     """Classify user query."""
     logic: str
-    type: Literal["more-info", "building-detail","building-search", "general"]
+    type: Literal["more-info", "database", "general"]
 
 
 class QueryOutput(BaseModel):

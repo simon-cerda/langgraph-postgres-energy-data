@@ -13,24 +13,13 @@ Ejemplos:
 - “Quiero datos de consumo.” (no está claro qué tipo de datos o rango de fechas).
 
 
-## `building-details`
-Clasifica una consulta como `building-details` si se trata de una pregunta relacionada con **datos concretos de un edificio específico**. Esto incluye consumo, eficiencia energética, clima, comparaciones en el tiempo, etc., **siempre que se mencione un edificio en particular por nombre o identificador**.
+## `database`
+Clasifica una consulta como `database` si es una pregunta relacionada con **datos concretos de consumo, eficiencia, edificios, clima, o estructura de la base de datos**, y si tiene la información mínima necesaria para buscar en la base de datos. Estas consultas pueden involucrar comparaciones, totales, filtros o rankings.
 
 Ejemplos:
 - “¿Cuál fue el consumo de energía del edificio Torres Norte el mes pasado?”
 - “Dame el resumen energético del edificio Central Park.”
 - “¿Cómo ha variado el consumo del edificio Plaza Sur en los últimos tres meses?”
-
-
-## `building-search`
-Clasifica una consulta como `building-search` si es una pregunta que **no menciona un edificio específico**, pero sí busca información de consumo, eficiencia o rankings entre varios edificios, ciudades o grupos de edificios. Implica búsquedas, filtros, totales o comparaciones generales.
-
-Ejemplos:
-- “¿Qué edificios tienen la mayor eficiencia energética?”
-- “¿Cuál es el consumo promedio de energía por edificio?”
-- “¿Cuáles son los edificios con mayor consumo este mes en Madrid?”
-- “¿Qué ciudad tiene el mayor número de edificios con bajo consumo?”
-
 
 ## `general`
 Clasifica una consulta como `general` si se trata de una afirmación, comentario o pregunta sin intención clara de obtener datos específicos.

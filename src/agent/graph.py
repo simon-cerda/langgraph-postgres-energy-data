@@ -46,7 +46,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     return {"router": {"type":response.type, "logic":response.logic}}
 
 
-def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query","sql_generation"]:
+def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_more_info", "respond_to_general_query"]:
     """Determine the next step based on the query classification.
 
     Args:
@@ -59,8 +59,7 @@ def route_query(state: State) -> Literal["retrieve_relevant_values", "ask_for_mo
         ValueError: If an unknown router type is encountered.
     """
     ROUTE_MAP = {
-    "building-detail": "retrieve_relevant_values",
-    "building-search": "sql_generation",
+    "database": "retrieve_relevant_values",
     "more-info": "ask_for_more_info",
     "general": "respond_to_general_query"
     }
@@ -97,7 +96,7 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
 
     query_embedding = embedding_model.encode([user_query])
     
-    for column in ["name","type"]:
+    for column in ["name"]:
         # Skip if column not in vectorstore
         if column not in vector_handler.vectorstore:
             continue
@@ -113,6 +112,9 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
         top_values = [values[i] for i in I[0]]
         relevant_values_dict[column] = top_values
 
+    relevant_values_dict["type"] = ["Administración","Educación","Comercio","Punto Limpio","Casal/Centro Cívico","Cultura y Ocio","Restauración",
+                                    "Salud y Servicios Sociales","Bienestar Social","Mercado","Parque","Industrial","Centros Deportivos","Parking"
+                                    ,"Policia","Cementerio","Protección Civil"]
 
     return {"relevant_values": relevant_values_dict}
 
