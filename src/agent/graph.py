@@ -36,7 +36,7 @@ async def detect_intent(state: State, *, config: RunnableConfig) -> dict[str, Ro
     """
     configuration = Configuration.from_runnable_config(config)
     
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration)
     
     messages = [SystemMessage(content=configuration.router_system_prompt)] + state.recent_messages
     
@@ -72,7 +72,7 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
     """Extract relevant tables and columns from the database schema based on the user query."""
     configuration = Configuration.from_runnable_config(config)
 
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration)
 
     database_schema = configuration.database_schema
 
@@ -122,7 +122,7 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
 async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration).with_structured_output(QueryOutput)
     database_handler = configuration.db_handler
     database_schema = configuration.database_schema
 
@@ -174,7 +174,7 @@ async def generate_explanation(state: State,config:RunnableConfig) -> State:
         sql = state.sql_query,
         sql_results=state.query_result)
 
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration)
 
 
     response = await model.ainvoke(prompt)
@@ -197,7 +197,7 @@ async def respond_to_general_query(state: State, *, config: RunnableConfig) -> S
         dict[str, list[str]]: A dictionary with a 'messages' key containing the generated response.
     """
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration)
     system_prompt = configuration.general_system_prompt.format(
         logic=state.router["logic"]
     )
@@ -218,7 +218,7 @@ async def ask_for_more_info(state: State, *, config: RunnableConfig) -> State:
         dict[str, list[str]]: A dictionary with a 'messages' key containing the generated response.
     """
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model,**configuration.ollama_configuration)
     system_prompt = configuration.more_info_system_prompt.format(
         logic=state.router["logic"]
     )

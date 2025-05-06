@@ -39,7 +39,10 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
 
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "openai/gpt-4.1-mini"
+MODEL_NAME = "ollama/qwen2.5-coder:latest"
+
+BASE_URL = os.getenv('BASE_URL')
+
 
 class VectorStoreHandler:
     """Handles vector store interactions."""
@@ -229,6 +232,10 @@ class Configuration:
         metadata={
             "description": "The language model used for processing and refining queries. Should be in the form: provider/model-name."
         },
+    )
+    ollama_configuration: dict = field(
+        default_factory=lambda: {"base_url": BASE_URL},
+        metadata={"description": "The configuration for the language model."}
     )
     router_system_prompt: str = field(
         default=prompts.ROUTER_SYSTEM_PROMPT,

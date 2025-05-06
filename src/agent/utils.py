@@ -16,18 +16,19 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import numpy as np
 
-def load_chat_model(fully_specified_name: str) -> BaseChatModel:
+def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     """Load a chat model from a fully specified name.
 
     Args:
         fully_specified_name (str): String in the format 'provider/model'.
+        **kwargs: Additional keyword arguments to pass to init_chat_model.
     """
     if "/" in fully_specified_name:
         provider, model = fully_specified_name.split("/", maxsplit=1)
     else:
         provider = ""
         model = fully_specified_name
-    return init_chat_model(model, model_provider=provider,temperature=0.7)
+    return init_chat_model(model, model_provider=provider, **kwargs)
 
 
 def execute_sql_query(query:str,schema,engine):
