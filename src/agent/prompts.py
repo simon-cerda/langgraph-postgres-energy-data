@@ -23,6 +23,15 @@ Ejemplos:
 
 ## `general`
 Clasifica una consulta como `general` si se trata de una afirmación, comentario o pregunta sin intención clara de obtener datos específicos.
+
+Responde con un Json con el siguiente formato:
+   
+   ```json
+   {
+      "type": "<database|more-info|general>",
+      "logic": "<reasoning>"
+   }
+   ```
 """
 
 
@@ -96,12 +105,12 @@ Follow these strict guidelines:
 9. Preferred sources, depending on the requested granularity and time span:  
    • Monthly data ­→ use **smart_buildings.energy_consumption_monthly_metrics**.  
    • Weekly data ­→ use **smart_buildings.energy_consumption_weekly_metrics**. 
-10. If the user makes a query for a building without specifying a period, generate a query with all the metrics of the current month.
-Available tables:   
+10. If the user makes a query for a building without specifying a period, generate a query with all the metrics of the current month. 
 11. Only use the example values listed below **if they are clearly relevant** to the user’s question; otherwise ignore them.  
 
 CURRENT DATE: {date}
 
+DATABASE SCHEMA:
 {schema_context}
 
 Some example values per column that might be useful for the query:  
