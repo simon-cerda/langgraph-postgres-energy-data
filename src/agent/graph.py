@@ -89,33 +89,32 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 
 def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     """Retrieve relevant values from the database based on the user's query."""
-    configuration = Configuration.from_runnable_config(config)
-    vector_handler = configuration.vectorstore_handler
+
     relevant_values_dict = {}
+    configuration = Configuration.from_runnable_config(config)
+    name_vectorstore = configuration.vectorstore_handler.name_vectorstore
+    sql_vectorstore = configuration.vectorstore_handler.sql_vectorstore
+
     user_query = state.messages[-1].content
 
-    query_embedding = embedding_model.encode([user_query])
-    
-    for column in ["name"]:
-        # Skip if column not in vectorstore
-        if column not in vector_handler.vectorstore:
-            continue
+    query_embedding = embedding_model.encode([user_query], convert_to_numpy=True)
 
-        # Get index and values
-        index = vector_handler.vectorstore[column]["index"]
-        values = vector_handler.vectorstore[column]["values"]
+    # Buscar nombre más similar
+    D1, I1 = name_vectorstore["name"]["index"].search(query_embedding, 2)
+    matched_names = [name_vectorstore["name"]["values"][i] for i in I1[0]]
 
-        # Search for relevant values in the column
-        D, I = index.search(np.array(query_embedding), 2)
+    # Buscar pregunta-SQL más similar
+    D2, I2 = sql_vectorstore["index"].search(query_embedding, 2)
+    matched_sql = [sql_vectorstore["values"][i] for i in I2[0]]
 
-        # Collect top-k relevant values
-        top_values = [values[i] for i in I[0]]
-        relevant_values_dict[column] = top_values
-
-    relevant_values_dict["type"] = ["Administración","Educación","Comercio","Punto Limpio","Casal/Centro Cívico","Cultura y Ocio","Restauración",
+    building_types = ["Administración","Educación","Comercio","Punto Limpio","Casal/Centro Cívico","Cultura y Ocio","Restauración",
                                     "Salud y Servicios Sociales","Bienestar Social","Mercado","Parque","Industrial","Centros Deportivos","Parking"
                                     ,"Policia","Cementerio","Protección Civil"]
-
+    
+    relevant_values_dict["matched_names"] = matched_names
+    relevant_values_dict["matched_sql"] = matched_sql
+    relevant_values_dict["building_types"] = building_types
+    
     return {"relevant_values": relevant_values_dict}
 
 
@@ -125,10 +124,12 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     model = load_chat_model(configuration.query_model,**configuration.ollama_configuration).with_structured_output(QueryOutput)
     database_handler = configuration.db_handler
     database_schema = configuration.database_schema
-
+    print(state.relevant_values)
     prompt = configuration.generate_sql_prompt.format(
         schema_context=database_schema,
-        relevant_values = state.relevant_values,
+        relevant_names = state.relevant_values["matched_names"],
+        relevant_sql = state.relevant_values["matched_sql"],
+        building_types = state.relevant_values["building_types"],
         dialect = database_handler.dialect,
         date =DATE,
     )

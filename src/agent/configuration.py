@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from dataclasses import dataclass, field, fields
 from typing import List, Optional
 from langchain_core.runnables import RunnableConfig,ensure_config
@@ -18,11 +21,10 @@ import pickle
 import yaml
 from pathlib import Path
 from typing import Dict
-
+import pandas as pd
 # DATABASE_URL = "sqlite:///energy_consumption.db"
 
-# Load environment variables from .env file
-load_dotenv()
+
 # Get the variables
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
@@ -36,8 +38,7 @@ if not DB_USER:
 # Construct the database URL
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-VECTORSTORE_PATH = os.getenv('VECTORSTORE_PATH')
-
+VECTORSTORE_PATH = "src"
 SCHEMA_PATH = "src/agent/schema_context.yaml"
 MODEL_NAME = "ollama/qwen2.5-coder:latest"
 
@@ -48,8 +49,8 @@ class VectorStoreHandler:
     """Handles vector store interactions."""
 
     def __init__(self, vectorstore_path: str):
-        self.vectorstore_path = vectorstore_path
-        self.vectorstore = self.load_vectorstore(vectorstore_path)
+        self.name_vectorstore = self.load_vectorstore(vectorstore_path+"/name_vectorstore.pkl")
+        self.sql_vectorstore = self.load_vectorstore(vectorstore_path+"/sql_vectorstore.pkl")
 
     def save_vectorstore(self,vectorstore: dict, save_path: str):
         with open(save_path, "wb") as f:
@@ -70,18 +71,29 @@ class VectorStoreHandler:
             values_by_column[col] = values
         return values_by_column
 
-    def build_vectorstore(self,values_by_column: dict[str, list[str]], model: SentenceTransformer) -> dict:
+    def build_key_values_vectorstore(self,values_by_key: dict[str, list[str]], model: SentenceTransformer) -> dict:
         vectorstore = {}
-        for col, values in values_by_column.items():
+        for key, values in values_by_key.items():
             embeddings = model.encode(values)
             index = faiss.IndexFlatL2(embeddings.shape[1])
             index.add(np.array(embeddings))
-            vectorstore[col] = {
+            vectorstore[key] = {
                 "index": index,
                 "values": values
             }
         return vectorstore
     
+    def build_df_values_vectorstore(self,df: pd.DataFrame, model: SentenceTransformer, key="question", col_values="sql"):
+        keys = df[key].tolist()
+        values = df[col_values].tolist()
+        embeddings = model.encode(keys, convert_to_numpy=True)
+        index = faiss.IndexFlatL2(embeddings.shape[1])
+        index.add(embeddings)
+        return {
+            "index": index,
+            "values": [{key: q, col_values: s} for q, s in zip(keys, values)]
+        }
+        
 
 class DatabaseHandler:
     """Handles database interactions."""
@@ -287,7 +299,8 @@ class Configuration:
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
         self.database_schema = self.db_handler.load_schema_from_yaml(SCHEMA_PATH)
-        self.vectorstore_handler = VectorStoreHandler(self.vectorstore_path)
+        self.vectorstore_handler = VectorStoreHandler(VECTORSTORE_PATH)
+ 
     
  
 
