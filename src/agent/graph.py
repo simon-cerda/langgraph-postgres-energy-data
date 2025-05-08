@@ -90,7 +90,6 @@ async def extract_relevant_info(state: State, *, config: RunnableConfig) -> Stat
 def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     """Retrieve relevant values from the database based on the user's query."""
 
-    relevant_values_dict = {}
     configuration = Configuration.from_runnable_config(config)
     name_vectorstore = configuration.vectorstore_handler.name_vectorstore
     sql_vectorstore = configuration.vectorstore_handler.sql_vectorstore
@@ -111,11 +110,10 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
                                     "Salud y Servicios Sociales","Bienestar Social","Mercado","Parque","Industrial","Centros Deportivos","Parking"
                                     ,"Policia","Cementerio","Protección Civil"]
     
-    relevant_values_dict["matched_names"] = matched_names
-    relevant_values_dict["matched_sql"] = matched_sql
-    relevant_values_dict["building_types"] = building_types
-    
-    return {"relevant_values": relevant_values_dict}
+
+    return {"relevant_values": {"matched_names":matched_names,
+                                "matched_sql":matched_sql,
+                                "building_types":building_types}}
 
 
 async def sql_generation(state: State, *, config: RunnableConfig) -> State:
@@ -127,8 +125,8 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     print(state.relevant_values)
     prompt = configuration.generate_sql_prompt.format(
         schema_context=database_schema,
-        relevant_names = state.relevant_values["matched_names"],
-        relevant_sql = state.relevant_values["matched_sql"],
+        matched_names = state.relevant_values["matched_names"],
+        matched_sql = state.relevant_values["matched_sql"],
         building_types = state.relevant_values["building_types"],
         dialect = database_handler.dialect,
         date =DATE,

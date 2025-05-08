@@ -113,8 +113,14 @@ CURRENT DATE: {date}
 DATABASE SCHEMA:
 {schema_context}
 
-Some example values per column that might be useful for the query:  
-{relevant_values}
+Some example building names that might be useful for the query:  
+{matched_names}
+
+Some SQL example queries that you might use as reference:
+{matched_sql}
+
+Building types:
+{building_types}
 
 Return **only** the SQL query—no additional explanation or formatting.
 """
