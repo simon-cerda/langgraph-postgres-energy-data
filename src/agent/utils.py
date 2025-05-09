@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 """Shared utility functions used in the project.
 
 Functions:
@@ -15,6 +18,8 @@ import faiss
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import numpy as np
+import os
+BASE_URL = os.getenv('BASE_URL')
 
 def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     """Load a chat model from a fully specified name.
@@ -25,9 +30,14 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     """
     if "/" in fully_specified_name:
         provider, model = fully_specified_name.split("/", maxsplit=1)
+
     else:
         provider = ""
         model = fully_specified_name
+
+    if provider == "ollama-nexus":
+            return init_chat_model(model, model_provider='ollama',base_url=BASE_URL, **kwargs)
+    
     return init_chat_model(model, model_provider=provider, **kwargs)
 
 

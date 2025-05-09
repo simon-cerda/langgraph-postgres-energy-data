@@ -24,8 +24,8 @@ tables:
         type: string
         description: Código Universal del Punto de Suministro; útil para filtrar o agrupar por instalación.
       - name: year_month
-        type: date        # primer día del mes
-        description: Fecha que identifica el mes; clave temporal para unir o filtrar por período.
+        type: date        
+        description: Fecha que identifica el mes; clave temporal para unir o filtrar por período. primer día del mes (yyyy-MM-01)
       - name: total_consumption_kwh
         type: double
         description: Consumo total del mes en kWh; base para facturación o KPIs de energía bruta.
