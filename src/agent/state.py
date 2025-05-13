@@ -37,6 +37,9 @@ class QueryOutput(BaseModel):
 
     query: Annotated[str, ..., "Syntactically valid SQL query."]
 
+class Response(BaseModel):
+    answer: Annotated[str, ..., "Response to the user question"]
+
 
 @dataclass(kw_only=True)
 class State(InputState):

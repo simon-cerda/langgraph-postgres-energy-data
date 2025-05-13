@@ -4,7 +4,8 @@ load_dotenv(override=True)
 from dataclasses import dataclass, field, fields
 from typing import List, Optional
 from langchain_core.runnables import RunnableConfig,ensure_config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, MetaData
+from sqlalchemy.schema import CreateTable
 from sqlalchemy.exc import OperationalError,SQLAlchemyError
 from typing import Annotated
 from agent import prompts
@@ -40,7 +41,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = "src"
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "ollama-nexus/gemma3:4b"
+MODEL_NAME = "ollama-nexus/qwen3:1.7b"
 
 
 
@@ -138,6 +139,18 @@ class DatabaseHandler:
         except SQLAlchemyError as e:
             print(f"Error al obtener el esquema de la tabla {table_name}: {e}")
             return []
+    
+    def get_database_ddl(self):
+
+        metadata = MetaData(schema=self.schema_name)
+        metadata.reflect(bind=self.engine, schema=self.schema_name)
+
+        ddl_statements = ""
+        for table in metadata.sorted_tables:
+            ddl = str(CreateTable(table).compile(self.engine)).strip()
+            ddl_statements += ddl+"\n"
+
+        return ddl_statements
 
     def load_database_schema(self) -> dict:
         """Loads the entire database schema with only table names and column names."""
@@ -178,8 +191,18 @@ class DatabaseHandler:
 
             output_str += "\n"
 
-        
+   
         return output_str
+
+    def load_raw_schema_yaml(self,file_path: Path):
+        try:
+            with open(file_path, 'r', encoding="utf-8") as f:
+                self.schema_data = yaml.safe_load(f)
+            return self.schema_data
+        except Exception as e:
+            raise ValueError(f"Failed to load schema from YAML: {str(e)}")
+
+        
 
     def get_table_description(self, table_name: str) -> Optional[Dict]:
         """Get complete description of a table including columns."""
@@ -294,7 +317,7 @@ class Configuration:
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
-        self.database_schema = self.db_handler.load_schema_from_yaml(SCHEMA_PATH)
+        self.database_schema = self.db_handler.load_raw_schema_yaml("src/agent/schema_db.yaml")
         self.vectorstore_handler = VectorStoreHandler(VECTORSTORE_PATH)
  
     

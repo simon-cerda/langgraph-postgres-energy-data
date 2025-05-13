@@ -29,7 +29,7 @@ Responde con un Json con el siguiente formato:
    ```json
    {
       "type": "<database|more-info|general>",
-      "logic": "<reasoning>"
+      "logic": "razon de la clasificación"
    }
    ```
 """
@@ -113,7 +113,7 @@ CURRENT DATE: {date}
 DATABASE SCHEMA:
 {schema_context}
 
-Some example building names that might be useful for the query:  
+The query may contain typos in the building names; here are some corrected examples that might help: 
 {matched_names}
 
 Some SQL example queries that you might use as reference:
@@ -124,6 +124,19 @@ Building types:
 
 Return **only** the SQL query—no additional explanation or formatting.
 """
+
+GENERATE_SQL_PROMPT_V4 = """You are a powerful text-to-SQL model. Your job is to answer questions about a database. You are given a question and context regarding one or more tables.
+You must output the SQL query that answers the question
+
+DATABASE SCHEMA:
+{schema_context}
+
+Building types:
+{building_types}
+
+Return **only** the SQL query—no additional explanation or formatting.
+"""
+
 
 RELEVANT_INFO_SYSTEM_PROMPT = """You are a smart database assistant. Analyze the user's query and extract the most relevant tables and columns from the provided database schema.
 
@@ -144,11 +157,7 @@ Return two objects:
 
 """
 
-EXPLAIN_RESULTS_PROMPT ="""Mensajes: 
-{messages}
-
-Responde a la pregunta del usuario usando los resultados de la consulta SQL. Siempre que sea relevante utiliza el nombre del edificio como aparecen en la base de datos.
-Si el usuario no definió un formato de respuesta, entrega un resumen breve y claro de los resultados, sin entrar en detalles técnicos.
+EXPLAIN_RESULTS_PROMPT ="""Responde a la pregunta del usuario usando los resultados de la consulta SQL. Siempre que sea relevante utiliza el nombre del edificio como aparecen en la base de datos.
 
 SQL:
 {sql}

@@ -5,17 +5,18 @@ This module contains the workflow for the agent, including the nodes and edges o
 
 from typing import cast, Literal
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage,AIMessage
 
 from langgraph.graph import END, START, StateGraph
 
 from agent.configuration import Configuration
-from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput
+from agent.state import State, InputState, Router, RelevantInfoResponse, QueryOutput, Response
 from agent.utils import load_chat_model, execute_sql_query
 import numpy as np
 import sqlparse
 from sentence_transformers import SentenceTransformer
 import datetime
+
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 DATE = datetime.datetime.today().strftime("%Y-%m-%d")
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
@@ -164,22 +165,23 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
 
 
 
+
 async def generate_explanation(state: State,config:RunnableConfig) -> State:
 
     configuration = Configuration.from_runnable_config(config)
     
     prompt = configuration.explain_results_prompt.format(
-        messages=state.recent_messages,
         sql = state.sql_query,
         sql_results=state.query_result)
 
-    model = load_chat_model(configuration.query_model)
+    model = load_chat_model(configuration.query_model).with_structured_output(Response)
+
+    messages = [SystemMessage(content=prompt)] + state.recent_messages
+
+    response = await model.ainvoke(messages)
 
 
-    response = await model.ainvoke(prompt)
-
-
-    return {"messages": [response]}
+    return {"messages": [AIMessage(content=response.answer)]}
 
 
 
