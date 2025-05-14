@@ -123,11 +123,15 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
     database_handler = configuration.db_handler
     database_schema = configuration.database_schema
-    print(state.relevant_values)
+
+    formatted_sql = ""
+    for entry in state.relevant_values["matched_sql"]:
+        formatted_sql += f"Pregunta: {entry['question']}\nSQL:\n{entry['sql']}\n\n"
+
     prompt = configuration.generate_sql_prompt.format(
         schema_context=database_schema,
         matched_names = state.relevant_values["matched_names"],
-        matched_sql = state.relevant_values["matched_sql"],
+        matched_sql =formatted_sql,
         building_types = state.relevant_values["building_types"],
         dialect = database_handler.dialect,
         date =DATE,
