@@ -158,6 +158,7 @@ async def validate_sql_query(state: State) -> State:
         print(f"Error de validación SQL: {e}")
         return {"is_sql_valid": False, "sql_validation_error": str(e)}
     
+    
 async def get_database_results(state: State, *, config: RunnableConfig) -> State:
     """Ejecuta una consulta SQL y maneja errores."""
 
@@ -174,11 +175,11 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
 
 
 async def generate_explanation(state: State,config:RunnableConfig) -> State:
-
-   # if "La consulta no devolvió resultados" in state.query_result:
-   #     return (
-   #        {"messages": [AIMessage(content= "No se encontraron datos en la base de datos para responder a tu consulta.")]}
-   #     )
+   
+    if "ERROR SQL" in state.query_result:
+            return (
+            {"messages": [AIMessage(content= "No pudimos obtener los datos en este momento. Intenta de nuevo o revisa que la información proporcionada sea correcta.")]}
+            )
 
     configuration = Configuration.from_runnable_config(config)
     user_query = state.messages[-1].content

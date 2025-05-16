@@ -18,8 +18,9 @@ dependencies = [
     "sentence-transformers",
     "faiss-cpu",
     "sqlparse",
-    "langgraph-cli[inmem]==0.2.75",
-    "langchain-ollama"
+    "langgraph-cli[inmem]",
+    "langchain-ollama",
+    "sqlalchemy",
     
 ]
 

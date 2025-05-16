@@ -94,7 +94,9 @@ def execute_sql_query(query: str, schema: str, engine) -> str:
         markdown_result = "\n".join(markdown_table)
         return markdown_result
     except SQLAlchemyError as e:
-        return f"Error al ejecutar la consulta SQL: {e}"
+        print(f"Error al ejecutar la consulta SQL: {e}")
+        
+        return "ERROR SQL"
     except Exception as e:
         return f"Ocurrió un error inesperado: {e}"
 
