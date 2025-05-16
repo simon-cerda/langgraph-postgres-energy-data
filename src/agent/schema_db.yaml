@@ -20,3 +20,16 @@ CREATE TABLE smart_buildings.energy_consumption_monthly_metrics (
     PRIMARY KEY (cups, year_month),
     FOREIGN KEY (cups) REFERENCES smart_buildings.building(cups)
 );
+
+CREATE TABLE smart_buildings.energy_consumption_weekly_metrics (
+    cups TEXT NOT NULL,
+    week_start DATE NOT NULL,
+    total_consumption_kwh DOUBLE PRECISION,
+    daily_consumption_kwh DOUBLE PRECISION,
+    total_consumption_prev_week_kwh DOUBLE PRECISION,
+    diff_pct_consumption_prev_week DOUBLE PRECISION,
+    std_daily_consumption_kwh DOUBLE PRECISION,
+    date_insert TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (cups, week_start),
+    FOREIGN KEY (cups) REFERENCES smart_buildings.building(cups)
+);
