@@ -5,7 +5,7 @@ This module contains the workflow for the agent, including the nodes and edges o
 
 from typing import cast, Literal
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import SystemMessage,AIMessage
+from langchain_core.messages import SystemMessage,AIMessage,HumanMessage
 
 from langgraph.graph import END, START, StateGraph
 
@@ -120,7 +120,7 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
 async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
-    model = load_chat_model(configuration.query_model).with_structured_output(QueryOutput)
+    model = load_chat_model(configuration.query_model)
     database_handler = configuration.db_handler
     database_schema = configuration.database_schema
 
@@ -131,18 +131,21 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     prompt = configuration.generate_sql_prompt.format(
         schema_context=database_schema,
         matched_names = state.relevant_values["matched_names"],
-        matched_sql =formatted_sql,
+        #matched_sql =formatted_sql,
         building_types = state.relevant_values["building_types"],
-        dialect = database_handler.dialect,
-        date =DATE,
+        #dialect = database_handler.dialect,
+        #date =DATE,
     )
 
-    messages = [SystemMessage(content=prompt)] + state.recent_messages
+    user_query = state.messages[-1].content
+
+    messages = [SystemMessage(content=prompt)] + [user_query]
     
     
     response = await model.ainvoke(messages)
+    #response = await model.with_structured_output(QueryOutput).ainvoke(messages)
     
-    return {"sql_query":response.query.strip()}
+    return {"sql_query":response.content.strip()}
 
 
 
@@ -172,20 +175,27 @@ async def get_database_results(state: State, *, config: RunnableConfig) -> State
 
 async def generate_explanation(state: State,config:RunnableConfig) -> State:
 
+   # if "La consulta no devolvió resultados" in state.query_result:
+   #     return (
+   #        {"messages": [AIMessage(content= "No se encontraron datos en la base de datos para responder a tu consulta.")]}
+   #     )
+
     configuration = Configuration.from_runnable_config(config)
-    
+    user_query = state.messages[-1].content
     prompt = configuration.explain_results_prompt.format(
         sql = state.sql_query,
-        sql_results=state.query_result)
+        sql_results=state.query_result,
+        question = user_query)
 
-    model = load_chat_model(configuration.query_model).with_structured_output(Response)
+    model = load_chat_model(configuration.query_model)
 
-    messages = [SystemMessage(content=prompt)] + state.recent_messages
-
+    messages = [
+    SystemMessage(content=prompt)
+    ]
     response = await model.ainvoke(messages)
 
 
-    return {"messages": [AIMessage(content=response.answer)]}
+    return {"messages": [AIMessage(content=response.content.strip())]}
 
 
 

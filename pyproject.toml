@@ -9,7 +9,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
-    "langgraph>=0.4.0",
+    "langgraph==0.3.18",
     "python-dotenv>=1.0.1",
     "langchain-openai>=0.3.10",
     "psycopg2-binary>=2.9.10",
@@ -18,7 +18,7 @@ dependencies = [
     "sentence-transformers",
     "faiss-cpu",
     "sqlparse",
-    "langgraph-cli[inmem]"
+    "langgraph-cli[inmem]==0.2.75"
     
 ]
 

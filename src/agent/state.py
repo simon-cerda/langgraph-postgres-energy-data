@@ -27,15 +27,14 @@ class InputState:
    
 
 class Router(BaseModel):
-    """Classify user query."""
-    logic: str
     type: Literal["more-info", "database", "general"]
+    logic: Annotated[str, Field(..., description="Detailed explanation for why this type was selected.")]
 
 
 class QueryOutput(BaseModel):
     """Generated SQL query."""
 
-    query: Annotated[str, ..., "Syntactically valid SQL query."]
+    query: str
 
 class Response(BaseModel):
     answer: Annotated[str, ..., "Response to the user question"]
