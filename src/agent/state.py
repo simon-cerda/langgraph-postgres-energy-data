@@ -32,9 +32,10 @@ class Router(BaseModel):
 
 
 class QueryOutput(BaseModel):
-    """Generated SQL query."""
-
-    query: str
+    query: Annotated[
+        str,
+        Field(description="Syntactically correct and well-formatted SQL query that can be executed directly against the database.")
+    ]
 
 class Response(BaseModel):
     answer: Annotated[str, ..., "Response to the user question"]

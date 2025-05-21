@@ -47,6 +47,18 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+def clean_sql(sql_str):
+    # Remove first line if it starts with ```sql
+    lines = sql_str.strip().splitlines()
+    if lines[0].startswith("```sql"):
+        lines = lines[1:]
+    # Remove last line if it is ```
+    if lines[-1].strip() == "```":
+        lines = lines[:-1]
+    # Join back
+    cleaned = "\n".join(lines)
+    return cleaned.strip()
+
 def execute_sql_query(query: str, schema: str, engine) -> str:
     """
     Execute a SQL query on the database and return results formatted as a Markdown table.
@@ -59,11 +71,12 @@ def execute_sql_query(query: str, schema: str, engine) -> str:
     Returns:
         str: Markdown-formatted results or a custom message if no results.
     """
+    cleaned_sql = clean_sql(query)
     try:
         with engine.connect() as connection:
             if schema:
                 connection.execute(text(f"SET search_path TO {schema}"))
-            result = connection.execute(text(query))
+            result = connection.execute(text(cleaned_sql))
             rows = result.fetchall()
             columns = result.keys()
 

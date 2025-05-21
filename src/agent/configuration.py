@@ -41,7 +41,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = "src"
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "ollama-nexus/gemma3:4b-finetuned"
+MODEL_NAME = "ollama-nexus/gemma3:4b-finetuned-v3"
 
 
 
