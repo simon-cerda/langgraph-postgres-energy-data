@@ -41,7 +41,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = "src"
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "ollama-nexus/gemma3:4b-finetuned-v3"
+MODEL_NAME = "ollama-nexus/gemma3:4b"
 
 
 
@@ -293,7 +293,7 @@ class Configuration:
         },
     )
     generate_sql_prompt: str = field(
-        default=prompts.GENERATE_SQL_PROMPT_V4,
+        default=prompts.GENERATE_SQL_PROMPT_V3,
         metadata={
             "description": "The system prompt used for generating SQL queries."
         },

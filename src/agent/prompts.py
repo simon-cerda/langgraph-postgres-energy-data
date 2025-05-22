@@ -94,6 +94,47 @@ Return **only** the SQL query—no additional explanation or formatting.
 
 GENERATE_SQL_PROMPT_V3 = """
 You are a SQL expert tasked with generating queries for a `{dialect}` database.
+
+CURRENT MONTH: {date}
+
+DATABASE SCHEMA:
+
+{schema_context}
+
+COLUMN DESCRIPTION:
+
+## Table: building
+
+* **cups**: Universal Supply Point Code; unique key for each building.
+* **name**: Building name; useful for identification and display.
+* **address**: Building address; useful for geolocation and logistics.
+* **type**: Building type; useful for segmentation and analysis. Possible values include: ["Administración","Educación","Comercio","Punto Limpio","Casal/Centro Cívico","Cultura y Ocio","Restauración","Salud y Servicios Sociales","Bienestar","Social","Mercado","Parque","Industrial","Centros Deportivos","Parking","Policia","Cementerio","Protección Civil"]
+
+## Table: energy_consumption_monthly_metrics
+
+* **cups**: Universal Supply Point Code; useful to filter or find building details.
+* **year_month**: Date identifying the month; key for filtering or joining by period. First day of month (yyyy-MM-01).
+* **total_consumption_kwh**: Total monthly consumption in kWh; base for gross energy KPIs.
+* **daily_consumption_kwh**: Average daily consumption for the month.
+* **total_consumption_prev_month_kwh**: Total consumption of previous month using same day window; useful for period comparison.
+* **diff_pct_consumption_prev_month**: Percentage change vs. previous month; useful to detect significant increases or decreases.
+* **std_daily_consumption_kwh**: Standard deviation of daily consumption in the month; useful to detect irregularities or peaks.
+* **ytd_consumption_kwh**: Year-to-date total consumption (kWh) from January 1st through current month.
+* **ytd_prev_year_consumption_kwh**: Year-to-date total consumption (kWh) for previous calendar year through same month (comparative YTD).
+* **total_consumption_prev_year_same_month_kwh**: Total consumption (kWh) in same month previous year (month - 12).
+* **date_insert**: Load timestamp in the mart; useful for audit and traceability.
+
+## Table: energy_consumption_weekly_metrics
+
+* **cups**: Universal Supply Point Code; useful to filter or find building details.
+* **week_start**: Date of the ISO week’s Monday; key for weekly analysis.
+* **total_consumption_kwh**: Total weekly consumption in kWh; base for short-term reports.
+* **daily_consumption_kwh**: Average daily consumption in the week; useful for homogeneous week comparisons.
+* **total_consumption_prev_week_kwh**: Total consumption of previous week with same coverage; useful for inter-week comparisons.
+* **diff_pct_consumption_prev_week**: Percentage change vs. previous week; useful to monitor rapid changes and alerts.
+* **std_daily_consumption_kwh**: Standard deviation of daily consumption in the week; useful to detect atypical peaks or irregular patterns.
+* **date_insert**: Load timestamp in the mart; useful for audit and traceability.
+
 Follow these strict guidelines:
 
 1. Write syntactically correct SQL for the `{dialect}` dialect.  
@@ -103,27 +144,17 @@ Follow these strict guidelines:
 5. Use proper identifier quoting based on the `{dialect}` syntax.  
 6. Always prefix every table with its schema name.  
 7. Do **not** make assumptions or use any data that is not present in the table definitions.  
-8. If the question mentions an entity or name, assume it refers to a building name.  
-9. Preferred sources, depending on the requested granularity and time span:  
+8. If the question mentions an entity or name, assume it refers to a building name.
+9. iF the query is regarding building type, make sure to use the ones given on the column description section. If is asking for some KPIs on type, use aggregations.
+10. Preferred sources, depending on the requested granularity and time span:  
    • Monthly data ­→ use **smart_buildings.energy_consumption_monthly_metrics**.  
    • Weekly data ­→ use **smart_buildings.energy_consumption_weekly_metrics**. 
-10. If the user makes a query for a building without specifying a period, generate a query with all the metrics of the current month. 
-11. Only use the example values listed below **if they are clearly relevant** to the user’s question; otherwise ignore them.  
-
-CURRENT DATE: {date}
-
-DATABASE SCHEMA:
-{schema_context}
-
+   
 The query may contain typos in the building names; here are some corrected examples that might help: 
 {matched_names}
 
-Some SQL example queries that you might use as reference:
+Some SQL Examples as Reference:
 {matched_sql}
-
-Building types:
-{building_types}
-
 
 Return **only** the SQL query—no additional explanation or formatting:
 """

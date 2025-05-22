@@ -15,10 +15,10 @@ from agent.utils import load_chat_model, execute_sql_query
 import numpy as np
 import sqlparse
 from sentence_transformers import SentenceTransformer
-import datetime
+from datetime import datetime
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-DATE = datetime.datetime.today().strftime("%Y-%m-%d")
+DATE = datetime.today().strftime("%Y-%m-01")
 embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
@@ -107,35 +107,32 @@ def retrieve_relevant_values(state: State, config: RunnableConfig) -> State:
     D2, I2 = sql_vectorstore["index"].search(query_embedding, 2)
     matched_sql = [sql_vectorstore["values"][i] for i in I2[0]]
 
-    building_types = ["Administración","Educación","Comercio","Punto Limpio","Casal/Centro Cívico","Cultura y Ocio","Restauración",
-                                    "Salud y Servicios Sociales","Bienestar Social","Mercado","Parque","Industrial","Centros Deportivos","Parking"
-                                    ,"Policia","Cementerio","Protección Civil"]
-    
+
 
     return {"relevant_values": {"matched_names":matched_names,
                                 "matched_sql":matched_sql,
-                                "building_types":building_types}}
+                                }}
 
 
 async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
-    #database_handler = configuration.db_handler
+    database_handler = configuration.db_handler
     database_schema = configuration.database_schema
 
-    #formatted_sql = ""
-    #for entry in state.relevant_values["matched_sql"]:
-    #    formatted_sql += f"Pregunta: {entry['question']}\nSQL:\n{entry['sql']}\n\n"
+    formatted_sql = ""
+    for question,sql in state.relevant_values["matched_sql"]:
+        formatted_sql += f"Pregunta: {question}\nSQL:\n{sql}\n\n"
     
     user_query = state.messages[-1]
 
     prompt = configuration.generate_sql_prompt.format(
         schema_context=database_schema,
         matched_names = state.relevant_values["matched_names"],
-        #matched_sql =formatted_sql,
-        building_types = state.relevant_values["building_types"],
-        #dialect = database_handler.dialect,
+        matched_sql =formatted_sql,
+        #building_types = state.relevant_values["building_types"],
+        dialect = database_handler.dialect,
         date =DATE,
     )
 
