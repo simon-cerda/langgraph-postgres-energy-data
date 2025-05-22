@@ -40,13 +40,6 @@ Necesitas crear un archivo .env con las siguientes variables.
 
 ```python
 # This file contains environment variables for the project.
-LANGSMITH_API_KEY="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"
-
-LANGSMITH_TRACING=true
-LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
-
-LANGSMITH_PROJECT="pr-assistant-nexus"
-
 OPENAI_API_KEY="openai_key" #depracated
 # Database configuration
 DB_USER="username"
