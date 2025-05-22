@@ -58,7 +58,9 @@ Deploy Streamlit APP:
 streamlit run src/app.py
 ```
 Deploy Langgraph Studio:
+```sh
 langgraph dev
+```
 
 ## 🧩 Funcionamiento
 
