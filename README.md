@@ -34,26 +34,32 @@ source venv/bin/activate  # En Windows usa `venv\Scripts\activate`
 pip install -e .
 ```
 
-## 🏗️ Uso
-
-Ejecuta el flujo de trabajo principal:
-
-```sh
-python main.py
-```
-
 ## 🛠️ Configuración
 
-Modifica `agent/configuration.py` para ajustar los prompts y la conexión a la base de datos:
+Necesitas crear un archivo .env con las siguientes variables.
 
 ```python
-DB_CONFIG = {
-    "dbname": "smart_city_db",
-    "user": "your_user",
-    "password": "your_password",
-    "host": "your_host",
-    "port": "5432"
-}
+# This file contains environment variables for the project.
+OPENAI_API_KEY="openai_key" #depracated
+# Database configuration
+DB_USER="username"
+DB_PASSWORD="passoword"
+DB_HOST="host"
+DB_PORT="port"
+DB_NAME="database"
+DB_SCHEMA="schema"
+
+BASE_URL = "ollama url"
+```
+## 🏗️ Uso
+
+Deploy Streamlit APP:
+```sh
+streamlit run src/app.py
+```
+Deploy Langgraph Studio:
+```sh
+langgraph dev
 ```
 
 ## 🧩 Funcionamiento
