@@ -54,7 +54,7 @@ class State(InputState):
     relevant_values: Optional[List[str]] = None
 
     @property
-    def recent_messages(self, n=3):
+    def recent_messages(self, n=2):
         return self.messages[-n:]
 
 

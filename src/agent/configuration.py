@@ -41,7 +41,7 @@ DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NA
 
 VECTORSTORE_PATH = "src"
 SCHEMA_PATH = "src/agent/schema_context.yaml"
-MODEL_NAME = "ollama-nexus/gemma3:4b"
+MODEL_NAME = "ollama-nexus/gemma3:4b-finetuned"
 
 
 
@@ -201,6 +201,12 @@ class DatabaseHandler:
             return self.schema_data
         except Exception as e:
             raise ValueError(f"Failed to load schema from YAML: {str(e)}")
+    
+    def read_schema_to_string(self,filepath):
+        """Reads the contents of a schema (.sql or .txt) file and returns it as a string."""
+        with open(filepath, 'r', encoding='utf-8') as file:
+            schema_string = file.read()
+        return schema_string
 
         
 
@@ -293,7 +299,7 @@ class Configuration:
         },
     )
     generate_sql_prompt: str = field(
-        default=prompts.GENERATE_SQL_PROMPT_V3,
+        default=prompts.GENERATE_SQL_PROMPT_V4,
         metadata={
             "description": "The system prompt used for generating SQL queries."
         },
@@ -317,7 +323,7 @@ class Configuration:
     def __post_init__(self):
         """Initialize the database handler and load the schema."""
         self.db_handler = DatabaseHandler(self.database_url)
-        self.database_schema = self.db_handler.load_raw_schema_yaml("src/agent/schema_db.yaml")
+        self.database_schema = self.db_handler.read_schema_to_string("src/agent/schema.sql")
         self.vectorstore_handler = VectorStoreHandler(VECTORSTORE_PATH)
  
     

@@ -165,17 +165,15 @@ GENERATE_SQL_PROMPT_V4 = """You are a powerful text-to-SQL model. Your job is to
 You must output the postgres SQL query that answers the question
 
 DATABASE SCHEMA:
-{schema_context}
 
-Some example building names that might be useful for the query:
-{matched_names}
+{schema}
 
 Building types:
-{building_types}
+['Administración', 'Educación', 'Comercio', 'Punto Limpio', 'Casal/Centro Cívico', 'Cultura y Ocio', 'Restauración', 'Salud y Servicios Sociales', 'Bienestar Social', 'Mercado', 'Parque', 'Industrial', 'Centros Deportivos', 'Parking', 'Policia', 'Cementerio', 'Protección Civil']
 
-CURRENT DATE: {date}
+Return **only** the SQL query—no additional explanation or formatting:
 
-Return **only** the SQL query—no additional explanation or formatting.
+{question}
 """
 
 

@@ -175,6 +175,6 @@ cython_debug/
 
 # Pickle files
 *.pickle
-*.pkl
+
 *.pckl
 

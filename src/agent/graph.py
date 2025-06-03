@@ -118,27 +118,27 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     """SQL generation with schema validation"""
     configuration = Configuration.from_runnable_config(config)
     model = load_chat_model(configuration.query_model)
-    database_handler = configuration.db_handler
+    #database_handler = configuration.db_handler
     database_schema = configuration.database_schema
 
-    formatted_sql = ""
-    for question,sql in state.relevant_values["matched_sql"]:
-        formatted_sql += f"Pregunta: {question}\nSQL:\n{sql}\n\n"
+    #formatted_sql = ""
+    #for question,sql in state.relevant_values["matched_sql"]:
+    #    formatted_sql += f"Pregunta: {question}\nSQL:\n{sql}\n\n"
     
     user_query = state.messages[-1]
 
     prompt = configuration.generate_sql_prompt.format(
-        schema_context=database_schema,
-        matched_names = state.relevant_values["matched_names"],
-        matched_sql =formatted_sql,
+        schema=database_schema,
+        question = user_query.content
+        #matched_names = state.relevant_values["matched_names"],
+        #matched_sql =formatted_sql,
         #building_types = state.relevant_values["building_types"],
-        dialect = database_handler.dialect,
-        date =DATE,
+        #dialect = database_handler.dialect,
     )
 
     
 
-    messages = [SystemMessage(content=prompt)] + [user_query]
+    messages = [SystemMessage(content=prompt)]
     
     
     response = await model.ainvoke(messages)
