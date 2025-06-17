@@ -124,12 +124,13 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     #formatted_sql = ""
     #for question,sql in state.relevant_values["matched_sql"]:
     #    formatted_sql += f"Pregunta: {question}\nSQL:\n{sql}\n\n"
-    
-    user_query = state.messages[-1]
+
+    state.sql_messages.append(state.messages[-1])
+
 
     prompt = configuration.generate_sql_prompt.format(
         schema=database_schema,
-        question = user_query.content
+        #question = user_query.content
         #matched_names = state.relevant_values["matched_names"],
         #matched_sql =formatted_sql,
         #building_types = state.relevant_values["building_types"],
@@ -137,14 +138,15 @@ async def sql_generation(state: State, *, config: RunnableConfig) -> State:
     )
 
     
-
-    messages = [SystemMessage(content=prompt)]
+    #adding last messages
+    messages = [SystemMessage(content=prompt)] + state.sql_messages[-3:]
     
     
     response = await model.ainvoke(messages)
+    sql_query = response.content.strip()
     #response = await model.with_structured_output(QueryOutput).ainvoke(messages)
     
-    return {"sql_query":response.content.strip()}
+    return {"sql_messages":[AIMessage(sql_query)], "sql_query": sql_query}
 
 
 

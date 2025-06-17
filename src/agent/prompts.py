@@ -173,7 +173,6 @@ Building types:
 
 Return **only** the SQL query—no additional explanation or formatting:
 
-{question}
 """
 
 

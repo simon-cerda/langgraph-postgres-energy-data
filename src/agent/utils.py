@@ -40,6 +40,8 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 
     if provider == "ollama-nexus":
             return init_chat_model(model, model_provider='ollama',base_url=BASE_URL, **kwargs)
+    elif provider == "openai-nexus":
+        return init_chat_model(model, model_provider='openai',base_url=BASE_URL, **kwargs)
     
     return init_chat_model(model, model_provider=provider, **kwargs)
 
